@@ -9,6 +9,12 @@ use MoonShine\ColorManager\Palettes\PurplePalette;
 use MoonShine\ColorManager\ColorManager;
 use MoonShine\Contracts\ColorManager\ColorManagerContract;
 use MoonShine\Contracts\ColorManager\PaletteContract;
+use App\MoonShine\Resources\VkGroup\VkGroupResource;
+use MoonShine\MenuManager\MenuItem;
+use App\MoonShine\Resources\VkPost\VkPostResource;
+use App\MoonShine\Resources\VkComment\VkCommentResource;
+use App\MoonShine\Resources\Keyword\KeywordResource;
+use App\MoonShine\Resources\Lead\LeadResource;
 
 final class MoonShineLayout extends AppLayout
 {
@@ -28,6 +34,11 @@ final class MoonShineLayout extends AppLayout
     {
         return [
             ...parent::menu(),
+            MenuItem::make(VkGroupResource::class, 'VK Groups'),
+            MenuItem::make(VkPostResource::class, 'VK Posts'),
+            MenuItem::make(VkCommentResource::class, 'VK Comments'),
+            MenuItem::make(KeywordResource::class, 'Keywords'),
+            MenuItem::make(LeadResource::class, 'Leads'),
         ];
     }
 

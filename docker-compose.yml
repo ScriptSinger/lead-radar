@@ -75,6 +75,17 @@ services:
     command: >
       sh -c "php artisan queue:work redis --queue=telegram.webhook,broadcast.telegram --tries=3 --timeout=90 --sleep=1 -vvv"
 
+  parser:
+    image: mcr.microsoft.com/playwright:v1.44.0-jammy
+    user: "${UID}:${GID}"
+    volumes:
+      - ./:/var/www/html
+    working_dir: /var/www/html
+    networks:
+      - laravel
+    # Keep it running so we can exec into it
+    command: tail -f /dev/null
+
 volumes:
   db_data:
 
