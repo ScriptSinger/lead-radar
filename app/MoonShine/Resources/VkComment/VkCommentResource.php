@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\MoonShine\Resources\VkComment;
 
 use App\Models\VkComment;
-
+use App\MoonShine\Resources\VkPost\VkPostResource;
 use Illuminate\Database\Eloquent\Model;
 use MoonShine\Contracts\Core\PageContract;
 
@@ -28,7 +28,7 @@ class VkCommentResource extends ModelResource
     {
         return [
             ID::make()->sortable(),
-            BelongsTo::make('Post', 'post', 'id'),
+            BelongsTo::make('Post', 'post', VkPostResource::class),
             Text::make('Vk comment id'),
             BelongsTo::make('Parent', 'parent', 'id'),
             Text::make('Text'),
