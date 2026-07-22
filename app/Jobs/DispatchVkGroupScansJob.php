@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\ScanSetting;
 use App\Models\VkGroup;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -9,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Fan-out: enqueue ScanVkGroupJob per active group with staggered delay (rate limit).
+ * Delay / defaults come from scan_settings (MoonShine) when not overridden by constructor.
  */
 class DispatchVkGroupScansJob implements ShouldQueue
 {
@@ -19,8 +21,8 @@ class DispatchVkGroupScansJob implements ShouldQueue
     public int $timeout = 60;
 
     public function __construct(
-        public int $limit = 6,
-        public bool $withComments = true,
+        public ?int $limit = null,
+        public ?bool $withComments = null,
         public ?int $onlyGroupId = null,
         public string $trigger = 'schedule',
     ) {
@@ -29,6 +31,11 @@ class DispatchVkGroupScansJob implements ShouldQueue
 
     public function handle(): void
     {
+        $settings = ScanSetting::current();
+        $limit = max(1, min(30, $this->limit ?? $settings->normalizedLimit()));
+        $withComments = $this->withComments ?? (bool) $settings->with_comments;
+        $delaySeconds = $settings->normalizedGroupDelaySeconds();
+
         $query = VkGroup::query()
             ->where('active', true)
             ->orderBy('id');
@@ -38,7 +45,6 @@ class DispatchVkGroupScansJob implements ShouldQueue
         }
 
         $groups = $query->get();
-        $delaySeconds = max(0, (int) config('services.vk.scan_group_delay_seconds', 45));
         $delay = 0;
         $dispatched = 0;
         $skipped = 0;
@@ -56,8 +62,8 @@ class DispatchVkGroupScansJob implements ShouldQueue
 
             ScanVkGroupJob::dispatch(
                 $group->id,
-                $this->limit,
-                $this->withComments,
+                $limit,
+                $withComments,
                 $this->trigger,
             )->delay(now()->addSeconds($delay));
 
@@ -69,8 +75,9 @@ class DispatchVkGroupScansJob implements ShouldQueue
             'dispatched' => $dispatched,
             'skipped_invalid_url' => $skipped,
             'delay_step' => $delaySeconds,
-            'with_comments' => $this->withComments,
-            'limit' => $this->limit,
+            'with_comments' => $withComments,
+            'limit' => $limit,
+            'post_window' => $settings->normalizedPostWindow(),
             'trigger' => $this->trigger,
         ]);
     }

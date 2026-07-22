@@ -16,6 +16,7 @@ use App\MoonShine\Resources\VkComment\VkCommentResource;
 use App\MoonShine\Resources\Keyword\KeywordResource;
 use App\MoonShine\Resources\Lead\LeadResource;
 use App\MoonShine\Resources\ScanRun\ScanRunResource;
+use App\MoonShine\Resources\ScanSetting\ScanSettingResource;
 
 final class MoonShineLayout extends AppLayout
 {
@@ -41,6 +42,7 @@ final class MoonShineLayout extends AppLayout
             MenuItem::make(KeywordResource::class, 'Keywords'),
             MenuItem::make(LeadResource::class, 'Leads'),
             MenuItem::make(ScanRunResource::class, 'Scan Runs'),
+            MenuItem::make(ScanSettingResource::class, 'Scan Settings'),
         ];
     }
 

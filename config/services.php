@@ -57,21 +57,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | VK scan automation + rate limits (Phases 5 & 8)
+    | VK scan — fallback defaults only
     |--------------------------------------------------------------------------
     |
-    | Keep fan-out staggered (scan_group_delay_seconds) and volume low
-    | (scan_limit). See docs/VK_RATE_LIMITS.md for captcha/block strategy.
-    | Parser-side gap: PARSER_REQUEST_GAP_MS in the parser service.
+    | Runtime policy lives in DB table scan_settings (MoonShine → Scan Settings)
+    | + ScanSettingSeeder. Env values below are legacy fallbacks for first boot
+    | before migrate/seed; the scheduler tick and jobs read ScanSetting::current().
+    |
+    | See docs/VK_RATE_LIMITS.md
     |
     */
     'vk' => [
-        'scan_limit' => (int) env('VK_SCAN_LIMIT', 6),
+        'scan_limit' => (int) env('VK_SCAN_LIMIT', 8),
         'scan_with_comments' => filter_var(env('VK_SCAN_WITH_COMMENTS', true), FILTER_VALIDATE_BOOL),
-        // Stagger between group jobs to reduce VK/parser pressure (seconds)
-        'scan_group_delay_seconds' => (int) env('VK_SCAN_GROUP_DELAY_SECONDS', 45),
-        // Documented schedule cadence (actual schedule is in routes/console.php)
-        'scan_schedule' => env('VK_SCAN_SCHEDULE', 'hourly'),
+        'scan_group_delay_seconds' => (int) env('VK_SCAN_GROUP_DELAY_SECONDS', 50),
+        'scan_schedule' => env('VK_SCAN_SCHEDULE', 'db'), // db = scan_settings.interval_minutes
+        'post_window' => env('VK_SCAN_POST_WINDOW', 'since_last_scan'),
     ],
 
 ];

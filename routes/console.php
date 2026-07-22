@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\DispatchVkGroupScansJob;
+use App\Services\Vk\ScanSchedule;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -11,17 +11,19 @@ Artisan::command('inspire', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Phase 5 — scheduled VK scans
+| VK scan schedule (DB-driven)
 |--------------------------------------------------------------------------
 |
-| Requires a process running: php artisan schedule:work
-| (docker service "scheduler") and queue worker on queue "vk.scan".
+| Tick every minute → ScanSchedule reads scan_settings (MoonShine) and
+| dispatches DispatchVkGroupScansJob when interval_minutes has elapsed.
+|
+| Requires: php artisan schedule:work (compose service "scheduler")
+|           + queue worker on queue "vk.scan".
 |
 */
-$limit = max(1, min(30, (int) config('services.vk.scan_limit', 6)));
-$withComments = (bool) config('services.vk.scan_with_comments', true);
-
-Schedule::job(new DispatchVkGroupScansJob($limit, $withComments))
-    ->name('vk-dispatch-group-scans')
-    ->hourly()
-    ->withoutOverlapping(55);
+Schedule::call(static function (): void {
+    app(ScanSchedule::class)->tick();
+})
+    ->name('vk-scan-schedule-tick')
+    ->everyMinute()
+    ->withoutOverlapping(5);

@@ -4,9 +4,11 @@ namespace App\Services\Vk;
 
 use App\Exceptions\ParserUnavailableException;
 use App\Models\ScanRun;
+use App\Models\ScanSetting;
 use App\Models\VkComment;
 use App\Models\VkGroup;
 use App\Models\VkPost;
+use App\Support\PostWindow;
 use App\Support\VkUrl;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -35,6 +37,10 @@ class GroupScanner
      *     comments_nested: int,
      *     leads_created: int,
      *     leads_updated: int,
+     *     posts_in_window: int,
+     *     posts_outside_window: int,
+     *     post_window: string,
+     *     window_cutoff: string|null,
      *     errors: list<string>,
      *     duration_ms: int,
      *     scan_run_id: int|null
@@ -45,9 +51,16 @@ class GroupScanner
         int $limit = 6,
         bool $withComments = false,
         string $trigger = 'manual',
+        ?string $postWindow = null,
     ): array {
         $startedAt = microtime(true);
         $run = ScanRun::start($group, $trigger, $limit, $withComments);
+
+        $windowMode = PostWindow::mode(
+            $postWindow ?? ScanSetting::current()->normalizedPostWindow()
+        );
+        // Capture cutoff before last_scan_at is updated at the end of a successful run
+        $windowCutoff = PostWindow::cutoff($group, $windowMode);
 
         $stats = [
             'group_id' => $group->id,
@@ -61,6 +74,10 @@ class GroupScanner
             'comments_nested' => 0,
             'leads_created' => 0,
             'leads_updated' => 0,
+            'posts_in_window' => 0,
+            'posts_outside_window' => 0,
+            'post_window' => $windowMode,
+            'window_cutoff' => $windowCutoff?->toIso8601String(),
             'errors' => [],
             'duration_ms' => 0,
             'scan_run_id' => $run->id,
@@ -74,6 +91,8 @@ class GroupScanner
             'limit' => $limit,
             'with_comments' => $withComments,
             'trigger' => $trigger,
+            'post_window' => $windowMode,
+            'window_cutoff' => $stats['window_cutoff'],
         ]);
 
         try {
@@ -100,6 +119,8 @@ class GroupScanner
 
             /** @var list<VkPost> $savedPosts */
             $savedPosts = [];
+            /** @var list<VkPost> $windowPosts posts for comments + lead match */
+            $windowPosts = [];
 
             foreach ($rawPosts as $raw) {
                 try {
@@ -110,6 +131,13 @@ class GroupScanner
                         $stats['posts_created']++;
                     } else {
                         $stats['posts_updated']++;
+                    }
+
+                    if (PostWindow::postInWindow($post, $windowCutoff)) {
+                        $windowPosts[] = $post;
+                        $stats['posts_in_window']++;
+                    } else {
+                        $stats['posts_outside_window']++;
                     }
                 } catch (Throwable $e) {
                     $message = "post upsert failed: {$e->getMessage()}";
@@ -123,7 +151,7 @@ class GroupScanner
             }
 
             if ($withComments) {
-                foreach ($savedPosts as $post) {
+                foreach ($windowPosts as $post) {
                     if (! $post->url) {
                         continue;
                     }
@@ -152,11 +180,14 @@ class GroupScanner
             }
 
             try {
-                $postsToMatch = VkPost::query()
-                    ->where('group_id', $group->id)
-                    ->with('comments')
-                    ->orderByDesc('id')
-                    ->get();
+                // Match only posts inside the time window from this scrape.
+                // Full rematch of historical content: php artisan vk:match-leads
+                $postsToMatch = collect($windowPosts)
+                    ->unique('id')
+                    ->values()
+                    ->each(static function (VkPost $post): void {
+                        $post->loadMissing('comments');
+                    });
 
                 $leadStats = $this->leadMatcher->matchPosts($postsToMatch, withComments: true);
                 $stats['leads_created'] += $leadStats['created'];
@@ -181,6 +212,9 @@ class GroupScanner
                 'group' => $group->name,
                 'duration_ms' => $stats['duration_ms'],
                 'posts_fetched' => $stats['posts_fetched'],
+                'posts_in_window' => $stats['posts_in_window'],
+                'posts_outside_window' => $stats['posts_outside_window'],
+                'post_window' => $windowMode,
                 'posts_created' => $stats['posts_created'],
                 'posts_updated' => $stats['posts_updated'],
                 'comments_fetched' => $stats['comments_fetched'],

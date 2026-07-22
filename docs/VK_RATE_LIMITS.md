@@ -4,16 +4,16 @@ Lead Radar scrapes **public** VK pages via a Playwright microservice (not the of
 
 ## What we already do
 
-| Layer | Control | Default | Config / env |
-|-------|---------|---------|--------------|
-| Scheduler | One fan-out job per hour, `withoutOverlapping(55)` | hourly | `routes/console.php`, `VK_SCAN_SCHEDULE` (docs) |
-| Fan-out | Stagger `ScanVkGroupJob` per group | **45s** between groups | `VK_SCAN_GROUP_DELAY_SECONDS` |
-| Volume | Max posts per group scan | **6** (cap 30) | `VK_SCAN_LIMIT` |
-| Parser | Serialize navigations + gap between page loads | **1500 ms** | `PARSER_REQUEST_GAP_MS` (parser service) |
-| Parser | Navigation timeout / post-load wait | 45s / 4s | `PARSER_NAV_TIMEOUT_MS`, `PARSER_PAGE_WAIT_MS` |
-| Jobs | Retries + backoff for flaky parser | 3 tries, 30/90/180s | `ScanVkGroupJob` |
-| Jobs | Pre-check `/health`; release 60s if parser down | — | `ScanVkGroupJob` |
-| Admin | Manual “Scan now” still goes through the same queue | — | MoonShine VK Groups |
+| Layer | Control | Default (seeder) | Where |
+|-------|---------|------------------|--------|
+| Scheduler | Minute tick → dispatch if interval elapsed | **30 min** | MoonShine **Scan Settings** (`interval_minutes`) |
+| Fan-out | Stagger `ScanVkGroupJob` per group | **50 s** | Scan Settings `group_delay_seconds` |
+| Volume | Max posts per group | **8** (cap 30) | Scan Settings `scan_limit` |
+| Comments | Scrape comments for in-window posts | **on** | Scan Settings `with_comments` |
+| Window | Match/comments date filter | `since_last_scan` | Scan Settings `post_window` |
+| Parser | Serialize navigations + gap | **1500 ms** | `PARSER_REQUEST_GAP_MS` |
+| Jobs | Retries + backoff | 3 tries, 30/90/180s | `ScanVkGroupJob` |
+| Admin | Manual “Scan now” | uses same settings limit/comments | MoonShine VK Groups |
 
 **Rule of thumb:** treat the pipeline as **serial-ish**, not a parallel crawl farm. Prefer more groups with longer delays over high concurrency.
 
@@ -43,12 +43,36 @@ Lead Radar scrapes **public** VK pages via a Playwright microservice (not the of
 - Prefer commercial keywords and active groups you care about — less noise, less traffic.
 - Store only fields you need (text, urls, ids); do not scrape private content or personal data beyond public posts/comments.
 
+## Post time window (comments + lead match)
+
+Parser always returns the **top N** wall posts (`VK_SCAN_LIMIT`). After upsert, only posts inside the window get **comments scrape** and **keyword match**:
+
+| `VK_SCAN_POST_WINDOW` | Meaning |
+|-----------------------|---------|
+| `since_last_scan` (default) | `posted_at >= last_scan_at`; first scan uses **start of today** |
+| `today` | calendar day in app timezone |
+| `all` | no date filter (every post in the N-slice) |
+
+**Important:** this does **not** download “all posts for the day” from VK. If a group publishes more than N posts between scans, raise `VK_SCAN_LIMIT` (e.g. 10–15) or scan more often. Full historical rematch: `php artisan vk:match-leads`.
+
+For **50 groups every ~5 hours**, prefer:
+
+```env
+VK_SCAN_POST_WINDOW=since_last_scan
+VK_SCAN_LIMIT=10
+VK_SCAN_GROUP_DELAY_SECONDS=100
+VK_SCAN_WITH_COMMENTS=false
+```
+
+Use `today` if you want a strict “only today’s applications” rule and accept missing late-yesterday posts after midnight.
+
 ## Suggested production baseline
 
 ```env
 VK_SCAN_LIMIT=6
 VK_SCAN_WITH_COMMENTS=true
 VK_SCAN_GROUP_DELAY_SECONDS=60
+VK_SCAN_POST_WINDOW=since_last_scan
 PARSER_REQUEST_GAP_MS=2000
 PARSER_TIMEOUT=180
 ```

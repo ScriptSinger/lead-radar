@@ -16,8 +16,13 @@ class DispatchVkGroupScansJobTest extends TestCase
     public function test_dispatches_active_groups_with_valid_urls_and_skips_invalid(): void
     {
         Queue::fake();
+        \App\Models\ScanSetting::forgetCache();
 
-        config(['services.vk.scan_group_delay_seconds' => 10]);
+        \App\Models\ScanSetting::current()->forceFill([
+            'group_delay_seconds' => 10,
+            'scan_limit' => 6,
+        ])->save();
+        \App\Models\ScanSetting::forgetCache();
 
         $good = VkGroup::query()->create([
             'name' => 'Good',

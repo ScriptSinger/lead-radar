@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
+            ScanSettingSeeder::class,
             VkGroupSeeder::class,
             KeywordSeeder::class,
         ]);

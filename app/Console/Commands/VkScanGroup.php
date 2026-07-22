@@ -121,6 +121,14 @@ class VkScanGroup extends Command
             }
 
             $this->line(sprintf(
+                '  window: %s in=%d out=%d cutoff=%s',
+                $stats['post_window'] ?? '—',
+                $stats['posts_in_window'] ?? 0,
+                $stats['posts_outside_window'] ?? 0,
+                $stats['window_cutoff'] ?? '—',
+            ));
+
+            $this->line(sprintf(
                 '  leads: created=%d updated=%d · %dms · run#%s',
                 $stats['leads_created'] ?? 0,
                 $stats['leads_updated'] ?? 0,

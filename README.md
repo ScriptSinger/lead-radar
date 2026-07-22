@@ -74,9 +74,7 @@ Worker ждёт healthy MySQL и слушает очереди:
 | `CACHE_STORE` | `file` — стабильнее для worker, чем cache DB при старте |
 | `PARSER_URL` | URL parser, в Docker: `http://parser:3000` |
 | `PARSER_TIMEOUT` | Таймаут HTTP к parser (сек), default 180 |
-| `VK_SCAN_LIMIT` | Постов на группу (1–30), default 6 |
-| `VK_SCAN_WITH_COMMENTS` | Сканировать комментарии |
-| `VK_SCAN_GROUP_DELAY_SECONDS` | Пауза между job групп (rate limit) |
+| `VK_SCAN_*` | Только fallback; **боевые** параметры — MoonShine **Scan Settings** |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Уведомления о лидах |
 | `TELEGRAM_NOTIFY_ENABLED` | `true`/`false` |
 | `TELEGRAM_WEBHOOK_URL` | Публичный URL webhook (ngrok) |
@@ -113,9 +111,15 @@ php artisan telegram:setup-webhook --info
 
 ## Очереди и расписание
 
-- **Scheduler** (`schedule:work`): hourly `DispatchVkGroupScansJob`, `withoutOverlapping(55)`.
-- **Worker**: длинный timeout (300s) под Playwright.
-- При падении parser job делает pre-check health, `release(60)`, retries с backoff; permanent fail → Telegram (если включено).
+- **Scan Settings** (БД + MoonShine): interval, delay, limit, comments, post window, on/off.
+- **Scheduler** (`schedule:work`): каждую минуту tick → если `interval_minutes` прошёл — fan-out.
+- Дефолт сидера: **каждые 30 мин**, delay 50s, limit 8, comments on, window `since_last_scan`.
+- **Worker**: timeout 300s; parser down → release/backoff; fail → Telegram (если включено).
+
+```bash
+php artisan migrate
+php artisan db:seed --class=ScanSettingSeeder
+```
 
 ---
 
@@ -139,6 +143,11 @@ php artisan telegram:setup-webhook --info
 - Один lead на пару keyword × post или keyword × comment.
 - `dedupe_key`: `p:{postId}:k:{keywordId}` / `c:{commentId}:k:{keywordId}` (unique).
 - Повторный match **не сбрасывает** `status` (processed/ignored сохраняются).
+- При скане comments + match только для постов в **окне** (`VK_SCAN_POST_WINDOW`):
+  - `since_last_scan` (default) — с прошлого `last_scan_at`, первый скан = **сегодня**;
+  - `today` — календарный день;
+  - `all` — все N постов с парсера.
+- Парсер по-прежнему отдаёт top-N стены; «весь день» = достаточный `VK_SCAN_LIMIT` + окно.
 
 ---
 

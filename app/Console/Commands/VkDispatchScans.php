@@ -9,14 +9,20 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('vk:dispatch-scans {--group= : Only this group id} {--limit=6 : Posts per group} {--with-comments=1 : Scrape comments} {--sync : Run in process instead of queue}')]
+#[Signature('vk:dispatch-scans {--group= : Only this group id} {--limit= : Posts per group (default: Scan Settings)} {--with-comments= : 1/0 scrape comments (default: Scan Settings)} {--sync : Run in process instead of queue}')]
 #[Description('Queue (or sync) VK group scans with rate-limited fan-out')]
 class VkDispatchScans extends Command
 {
     public function handle(): int
     {
-        $limit = max(1, min(30, (int) $this->option('limit')));
-        $withComments = filter_var($this->option('with-comments'), FILTER_VALIDATE_BOOL);
+        $settings = \App\Models\ScanSetting::current();
+        $limitOpt = $this->option('limit');
+        $limit = $limitOpt !== null && $limitOpt !== ''
+            ? max(1, min(30, (int) $limitOpt))
+            : $settings->normalizedLimit();
+        $withComments = $this->option('with-comments') !== null && $this->option('with-comments') !== ''
+            ? filter_var($this->option('with-comments'), FILTER_VALIDATE_BOOL)
+            : (bool) $settings->with_comments;
         $groupId = $this->option('group');
         $onlyGroupId = ($groupId !== null && $groupId !== '') ? (int) $groupId : null;
         $sync = (bool) $this->option('sync');
@@ -25,21 +31,22 @@ class VkDispatchScans extends Command
             return $this->runSync($onlyGroupId, $limit, $withComments);
         }
 
-        DispatchVkGroupScansJob::dispatch($limit, $withComments, $onlyGroupId);
+        DispatchVkGroupScansJob::dispatch($limit, $withComments, $onlyGroupId, 'manual');
 
         $count = VkGroup::query()
             ->where('active', true)
             ->when($onlyGroupId, fn ($q) => $q->whereKey($onlyGroupId))
             ->count();
 
-        $delay = (int) config('services.vk.scan_group_delay_seconds', 45);
+        $delay = $settings->normalizedGroupDelaySeconds();
 
         $this->info(sprintf(
-            'Queued scan fan-out for %d group(s) on queue=vk.scan (delay step %ds, comments=%s, limit=%d)',
+            'Queued scan fan-out for %d group(s) on queue=vk.scan (delay step %ds, comments=%s, limit=%d, window=%s)',
             $count,
             $delay,
             $withComments ? 'yes' : 'no',
             $limit,
+            $settings->normalizedPostWindow(),
         ));
 
         return self::SUCCESS;

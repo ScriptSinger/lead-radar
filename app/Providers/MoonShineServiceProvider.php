@@ -16,6 +16,7 @@ use App\MoonShine\Resources\VkComment\VkCommentResource;
 use App\MoonShine\Resources\Keyword\KeywordResource;
 use App\MoonShine\Resources\Lead\LeadResource;
 use App\MoonShine\Resources\ScanRun\ScanRunResource;
+use App\MoonShine\Resources\ScanSetting\ScanSettingResource;
 
 class MoonShineServiceProvider extends ServiceProvider
 {
@@ -34,6 +35,7 @@ class MoonShineServiceProvider extends ServiceProvider
                 KeywordResource::class,
                 LeadResource::class,
                 ScanRunResource::class,
+                ScanSettingResource::class,
             ])
             ->pages([
                 ...$core->getConfig()->getPages(),

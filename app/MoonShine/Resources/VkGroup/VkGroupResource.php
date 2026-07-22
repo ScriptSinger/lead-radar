@@ -107,8 +107,9 @@ class VkGroupResource extends ModelResource
             return;
         }
 
-        $limit = max(1, min(30, (int) config('services.vk.scan_limit', 6)));
-        $withComments = (bool) config('services.vk.scan_with_comments', true);
+        $settings = \App\Models\ScanSetting::current();
+        $limit = $settings->normalizedLimit();
+        $withComments = (bool) $settings->with_comments;
 
         if (! \App\Support\VkUrl::isValid($group->url)) {
             toast(\App\Support\VkUrl::validationMessage(), ToastType::ERROR);
