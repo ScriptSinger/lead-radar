@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'parser' => [
+        'url' => env('PARSER_URL', 'http://parser:3000'),
+        'timeout' => (int) env('PARSER_TIMEOUT', 60),
+    ],
+
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'chat_id' => env('TELEGRAM_CHAT_ID'),
+    ],
+
 ];

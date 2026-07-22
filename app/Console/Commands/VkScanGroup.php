@@ -22,8 +22,11 @@ class VkScanGroup extends Command
 
             $this->info($group->url);
 
-            $response = Http::timeout(15)->post(
-                'http://parser:3000/scrape/group',
+            $parserUrl = rtrim((string) config('services.parser.url'), '/');
+            $timeout = (int) config('services.parser.timeout', 60);
+
+            $response = Http::timeout($timeout)->post(
+                "{$parserUrl}/scrape/group",
                 ['url' => $group->url]
             );
 
