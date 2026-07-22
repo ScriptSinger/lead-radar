@@ -2,10 +2,18 @@ const { withPage, goto } = require("../browser/playwright");
 const { normalizeComment } = require("../utils/vk");
 const logger = require("../utils/logger");
 
+/** Max expand-click rounds per post (show more / show replies). */
+const MAX_EXPAND_ROUNDS = Number(process.env.PARSER_COMMENT_EXPAND_ROUNDS || 8);
+/** Max offset pages to follow for thread pagination. */
+const MAX_OFFSET_PAGES = Number(process.env.PARSER_COMMENT_OFFSET_PAGES || 15);
+/** Pause after each expand click (ms). */
+const EXPAND_WAIT_MS = Number(process.env.PARSER_COMMENT_EXPAND_WAIT_MS || 800);
+
 /**
  * Scrape comments for a VK wall post.
  *
- * Prefer m.vk.com — desktop often hides comments for anonymous sessions.
+ * Prefer m.vk.com — desktop often hides replies for anonymous sessions.
+ * Expands collapsed threads, follows offset pagination links, merges results.
  *
  * Contract item:
  * {
@@ -31,9 +39,84 @@ async function scrapeComments({ url }) {
     const rawComments = await withPage(
         async (page, { waitMs }) => {
             await goto(page, mobileUrl, { waitMs: Math.max(waitMs, 4000) });
-            await expandComments(page);
 
-            let comments = await page.evaluate(extractMobileComments, postIdFromUrl);
+            // Collect comments from main page + paginated offset URLs
+            const all = [];
+            const seenPages = new Set();
+
+            const harvest = async (pageUrl, label) => {
+                const key = normalizePageKey(pageUrl);
+                if (seenPages.has(key)) {
+                    return [];
+                }
+                seenPages.add(key);
+
+                if (page.url() !== pageUrl && !page.url().includes(key)) {
+                    await goto(page, pageUrl, {
+                        waitMs: Math.max(waitMs, 3000),
+                    });
+                }
+
+                const expandStats = await expandAllComments(page);
+                const batch = await page.evaluate(
+                    extractMobileComments,
+                    postIdFromUrl,
+                );
+
+                logger.info("scrapeComments harvest", {
+                    label,
+                    pageUrl,
+                    count: batch.length,
+                    ...expandStats,
+                });
+
+                return batch;
+            };
+
+            // 1) Main wall page
+            all.push(...(await harvest(mobileUrl, "main")));
+
+            // 2) Discover and follow offset/thread pagination links
+            let offsetPages = await collectPaginationUrls(page, mobileUrl);
+            let pageGuard = 0;
+
+            while (
+                offsetPages.length > 0 &&
+                pageGuard < MAX_OFFSET_PAGES
+            ) {
+                const nextUrl = offsetPages.shift();
+                pageGuard++;
+
+                const batch = await harvest(nextUrl, `offset-${pageGuard}`);
+                all.push(...batch);
+
+                // New pagination links may appear after loading offset page
+                const more = await collectPaginationUrls(page, mobileUrl);
+                for (const u of more) {
+                    const k = normalizePageKey(u);
+                    if (!seenPages.has(k) && !offsetPages.includes(u)) {
+                        offsetPages.push(u);
+                    }
+                }
+            }
+
+            // Deduplicate by vk_comment_id (keep first with parent if possible)
+            const byId = new Map();
+            for (const c of all) {
+                const id = String(c.vk_comment_id || "");
+                if (!id) continue;
+                const prev = byId.get(id);
+                if (!prev) {
+                    byId.set(id, c);
+                    continue;
+                }
+                // Prefer entry that has parent_comment_id
+                if (!prev.parent_comment_id && c.parent_comment_id) {
+                    byId.set(id, c);
+                }
+            }
+
+            let comments = Array.from(byId.values());
 
             if (!comments.length) {
                 const desktopUrl = toDesktopVkUrl(url);
@@ -43,7 +126,7 @@ async function scrapeComments({ url }) {
                 await goto(page, desktopUrl, {
                     waitMs: Math.max(waitMs, 4000),
                 });
-                await expandComments(page);
+                await expandAllComments(page);
                 comments = await page.evaluate(
                     extractDesktopComments,
                     postIdFromUrl,
@@ -59,9 +142,266 @@ async function scrapeComments({ url }) {
         .map((c) => normalizeComment(c, postIdFromUrl))
         .filter((c) => c.vk_comment_id && c.text);
 
-    logger.info("scrapeComments done", { url, count: data.length });
+    // Infer parent from URL when DOM missed RepliesThread
+    for (const item of data) {
+        if (!item.parent_comment_id && item.url) {
+            const fromUrl = parentFromUrl(item.url);
+            if (fromUrl && fromUrl !== item.vk_comment_id) {
+                item.parent_comment_id = fromUrl;
+            }
+        }
+    }
+
+    // If comment was loaded via ?reply=ROOT&offset=… and is not ROOT, parent=ROOT
+    // (handled in extract when page has reply= in location)
+
+    const withParent = data.filter((c) => c.parent_comment_id).length;
+    const roots = data.length - withParent;
+
+    logger.info("scrapeComments done", {
+        url,
+        count: data.length,
+        roots,
+        nested: withParent,
+    });
 
     return data;
+}
+
+/**
+ * Collect pagination / "show all comments" URLs from current DOM.
+ *
+ * m.vk uses e.g. /wall-123_456?offset=1&reply=789#789 (RepliesThreadNext__link)
+ *
+ * @param {import('playwright').Page} page
+ * @param {string} baseUrl
+ * @returns {Promise<string[]>}
+ */
+async function collectPaginationUrls(page, baseUrl) {
+    const hrefs = await page.evaluate(() => {
+        const out = [];
+        const nodes = document.querySelectorAll(
+            "a.RepliesThreadNext__link, a[href*='offset='], a[href*='Offset=']",
+        );
+        for (const a of nodes) {
+            const href = a.getAttribute("href");
+            if (href) out.push(href);
+        }
+        // Also "Показать все комментарии" even if class differs
+        document.querySelectorAll("a").forEach((a) => {
+            const t = (a.innerText || "").replace(/\s+/g, " ").trim();
+            if (/показать все комментарии/i.test(t)) {
+                const href = a.getAttribute("href");
+                if (href) out.push(href);
+            }
+        });
+        return out;
+    });
+
+    const absolute = [];
+    const seen = new Set();
+
+    for (const href of hrefs) {
+        try {
+            const abs = new URL(href, baseUrl).toString();
+            // Only follow comment-related pagination
+            if (!/[?&]offset=/i.test(abs) && !/[?&]reply=/i.test(abs)) {
+                continue;
+            }
+            const key = normalizePageKey(abs);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            absolute.push(abs);
+        } catch {
+            // skip bad href
+        }
+    }
+
+    return absolute;
+}
+
+/**
+ * @param {string} url
+ */
+function normalizePageKey(url) {
+    try {
+        const u = new URL(url);
+        // ignore hash
+        u.hash = "";
+        return u.toString();
+    } catch {
+        return String(url).split("#")[0];
+    }
+}
+
+/**
+ * Aggressively expand collapsed comments / thread replies on the page.
+ *
+ * @param {import('playwright').Page} page
+ * @returns {Promise<{ rounds: number, clicks: number, itemsBefore: number, itemsAfter: number }>}
+ */
+async function expandAllComments(page) {
+    const itemsBefore = await countReplyItems(page);
+    let clicks = 0;
+    let rounds = 0;
+    let stagnant = 0;
+
+    for (let round = 0; round < MAX_EXPAND_ROUNDS; round++) {
+        rounds++;
+        const before = await countReplyItems(page);
+        const clickedThisRound = await clickExpandControls(page);
+        clicks += clickedThisRound;
+
+        await page
+            .evaluate(() => {
+                const wrap =
+                    document.querySelector(".RepliesWrap") ||
+                    document.querySelector(".wall_replies") ||
+                    document.querySelector("#replies") ||
+                    document.body;
+                wrap.scrollTop = wrap.scrollHeight;
+                window.scrollBy(0, 600);
+            })
+            .catch(() => {});
+
+        await page.waitForTimeout(EXPAND_WAIT_MS);
+
+        const after = await countReplyItems(page);
+
+        if (clickedThisRound === 0 && after <= before) {
+            stagnant++;
+            if (stagnant >= 2) break;
+        } else {
+            stagnant = 0;
+        }
+    }
+
+    await page.waitForTimeout(400);
+    const itemsAfter = await countReplyItems(page);
+
+    return { rounds, clicks, itemsBefore, itemsAfter };
+}
+
+/**
+ * @param {import('playwright').Page} page
+ * @returns {Promise<number>}
+ */
+async function clickExpandControls(page) {
+    const patterns = [
+        "a.RepliesThreadNext__link",
+        'a:has-text("Показать все комментарии")',
+        'button:has-text("Показать все комментарии")',
+        'a:has-text("Показать комментарии")',
+        'a:has-text("Показать предыдущие")',
+        'a:has-text("Показать следующие")',
+        'a:has-text("Ещё комментарии")',
+        'a:has-text("ответ")',
+        'button:has-text("ответ")',
+        ".replies_next",
+        ".js-replies_next_link",
+        "a.RepliesShowMore",
+        ".RepliesShowMore",
+        "[class*='ShowMore']",
+        "[class*='replies_next']",
+    ];
+
+    let clicks = 0;
+
+    for (const sel of patterns) {
+        let loc;
+        try {
+            loc = page.locator(sel);
+        } catch {
+            continue;
+        }
+
+        const count = await loc.count().catch(() => 0);
+        const limit = Math.min(count, 6);
+
+        for (let i = 0; i < limit; i++) {
+            const el = loc.nth(i);
+            try {
+                if (!(await el.isVisible({ timeout: 200 }))) continue;
+
+                const text = ((await el.innerText()) || "")
+                    .replace(/\s+/g, " ")
+                    .trim();
+
+                if (/^ответить$/i.test(text)) continue;
+
+                // Prefer navigate for offset links (JS click is flaky on m.vk)
+                const href = await el.getAttribute("href");
+                if (href && /offset=/i.test(href)) {
+                    // Leave for collectPaginationUrls / harvest — don't fight SPA
+                    continue;
+                }
+
+                await el.click({ timeout: 1500, force: true });
+                clicks++;
+                await page.waitForTimeout(200);
+            } catch {
+                // ignore
+            }
+        }
+    }
+
+    return clicks;
+}
+
+/**
+ * @param {import('playwright').Page} page
+ */
+async function countReplyItems(page) {
+    return page
+        .evaluate(
+            () =>
+                document.querySelectorAll(
+                    ".ReplyItem, div[id^='wall_reply'], .reply",
+                ).length,
+        )
+        .catch(() => 0);
+}
+
+/**
+ * Parent from reply URL: ?reply=X&thread=Y → Y is thread root / parent.
+ *
+ * @param {string} href
+ * @returns {string|null}
+ */
+function parentFromUrl(href) {
+    try {
+        const u = new URL(href, "https://m.vk.com");
+        const thread = u.searchParams.get("thread");
+        if (thread && /^\d+$/.test(thread)) {
+            return thread;
+        }
+    } catch {
+        // ignore
+    }
+
+    const m = String(href).match(/[?&#]thread=(\d+)/);
+    return m ? m[1] : null;
+}
+
+/**
+ * Thread root from current page URL (?reply=ROOT&offset=N).
+ * Used when harvesting offset pages of a thread.
+ *
+ * @param {string} pageUrl
+ * @returns {string|null}
+ */
+function threadRootFromPageUrl(pageUrl) {
+    try {
+        const u = new URL(pageUrl);
+        // On offset pages: ?offset=1&reply=214027 means thread under 214027
+        if (u.searchParams.has("offset") && u.searchParams.has("reply")) {
+            const r = u.searchParams.get("reply");
+            if (r && /^\d+$/.test(r)) return r;
+        }
+    } catch {
+        // ignore
+    }
+    return null;
 }
 
 /**
@@ -71,6 +411,19 @@ async function scrapeComments({ url }) {
 function extractMobileComments(fallbackPostId) {
     const result = [];
     const seen = new Set();
+
+    // Page-level thread hint for offset pagination pages
+    let pageThreadRoot = null;
+    try {
+        const u = new URL(location.href);
+        if (u.searchParams.has("offset") && u.searchParams.has("reply")) {
+            const r = u.searchParams.get("reply");
+            if (r && /^\d+$/.test(r)) pageThreadRoot = r;
+        }
+    } catch {
+        // ignore
+    }
+
     const items = document.querySelectorAll(
         ".ReplyItem, div[id^='wall_reply']",
     );
@@ -105,9 +458,10 @@ function extractMobileComments(fallbackPostId) {
 
         let vkCommentId = null;
         let commentUrl = null;
+        let href = "";
 
         if (dateLink) {
-            const href = dateLink.getAttribute("href") || "";
+            href = dateLink.getAttribute("href") || "";
             commentUrl = href.startsWith("http")
                 ? href
                 : href
@@ -124,11 +478,65 @@ function extractMobileComments(fallbackPostId) {
         if (!vkCommentId || seen.has(vkCommentId)) continue;
         seen.add(vkCommentId);
 
+        // --- parent resolution ---
         let parentCommentId = null;
+
+        // 1) Inside RepliesThread{parentId}
         const thread = item.closest("[id^='RepliesThread']");
         if (thread && thread.id) {
             const pm = thread.id.match(/RepliesThread(\d+)/);
-            if (pm) parentCommentId = pm[1];
+            if (pm && pm[1] !== vkCommentId) {
+                parentCommentId = pm[1];
+            }
+        }
+
+        // 2) URL ?thread=
+        if (!parentCommentId && href) {
+            const tm = href.match(/[?&#]thread=(\d+)/);
+            if (tm && tm[1] !== vkCommentId) {
+                parentCommentId = tm[1];
+            }
+        }
+
+        // 3) Nested under another ReplyItem
+        if (!parentCommentId) {
+            const outer = item.parentElement?.closest?.(
+                ".ReplyItem, div[id^='wall_reply']",
+            );
+            if (outer && outer !== item) {
+                const outerId = outer.id || "";
+                const om = outerId.match(/wall_reply-?(-?\d+)_(\d+)/i);
+                if (om && om[2] !== vkCommentId) {
+                    parentCommentId = om[2];
+                }
+            }
+        }
+
+        // 4) data attributes
+        if (!parentCommentId) {
+            const dataParent =
+                item.getAttribute("data-parent-id") ||
+                item.getAttribute("data-reply-to") ||
+                item.getAttribute("data-thread-id") ||
+                null;
+            if (dataParent) {
+                const raw = String(dataParent);
+                parentCommentId = raw.includes("_")
+                    ? raw.split("_").pop()
+                    : raw;
+                if (parentCommentId === vkCommentId) {
+                    parentCommentId = null;
+                }
+            }
+        }
+
+        // 5) Offset page of a thread: everything except the root is nested
+        if (
+            !parentCommentId &&
+            pageThreadRoot &&
+            pageThreadRoot !== vkCommentId
+        ) {
+            parentCommentId = pageThreadRoot;
         }
 
         let authorId = null;
@@ -136,8 +544,8 @@ function extractMobileComments(fallbackPostId) {
             item.querySelector(".ReplyItem__name") ||
             item.querySelector("a.author");
         if (authorEl) {
-            const href = authorEl.getAttribute("href") || "";
-            const am = href.match(/(?:id|club|public)(-?\d+)/i);
+            const ahref = authorEl.getAttribute("href") || "";
+            const am = ahref.match(/(?:id|club|public)(-?\d+)/i);
             if (am) authorId = am[1];
         }
 
@@ -204,6 +612,21 @@ function extractDesktopComments(fallbackPostId) {
         if (!vkCommentId || seen.has(vkCommentId)) continue;
         seen.add(vkCommentId);
 
+        let parentCommentId = null;
+        const parentAttr =
+            item.getAttribute("data-parent") ||
+            item.getAttribute("data-reply-to") ||
+            null;
+        if (parentAttr) {
+            parentCommentId = String(parentAttr).includes("_")
+                ? String(parentAttr).split("_").pop()
+                : String(parentAttr);
+        }
+        if (!parentCommentId && href) {
+            const tm = href.match(/[?&#]thread=(\d+)/);
+            if (tm && tm[1] !== vkCommentId) parentCommentId = tm[1];
+        }
+
         let authorId = null;
         const authorEl =
             item.querySelector("a.author") ||
@@ -219,7 +642,7 @@ function extractDesktopComments(fallbackPostId) {
         result.push({
             vk_comment_id: String(vkCommentId),
             vk_post_id: fallbackPostId,
-            parent_comment_id: null,
+            parent_comment_id: parentCommentId,
             text,
             url: href
                 ? href.startsWith("http")
@@ -233,33 +656,6 @@ function extractDesktopComments(fallbackPostId) {
     }
 
     return result;
-}
-
-/**
- * @param {import('playwright').Page} page
- */
-async function expandComments(page) {
-    const selectors = [
-        'a:has-text("Показать все комментарии")',
-        'button:has-text("Показать все комментарии")',
-        'a:has-text("Показать комментарии")',
-        'button:has-text("Показать комментарии")',
-        ".replies_next",
-        ".js-replies_next_link",
-        "a.RepliesShowMore",
-    ];
-
-    for (const sel of selectors) {
-        try {
-            const el = page.locator(sel).first();
-            if (await el.isVisible({ timeout: 600 })) {
-                await el.click({ timeout: 2000 });
-                await page.waitForTimeout(1500);
-            }
-        } catch {
-            // optional UI control
-        }
-    }
 }
 
 /**
@@ -321,4 +717,8 @@ module.exports = {
     scrapeComments,
     extractPostIdFromUrl,
     toMobileVkUrl,
+    parentFromUrl,
+    expandAllComments,
+    collectPaginationUrls,
+    threadRootFromPageUrl,
 };

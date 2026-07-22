@@ -37,7 +37,8 @@ return [
 
     'parser' => [
         'url' => env('PARSER_URL', 'http://parser:3000'),
-        'timeout' => (int) env('PARSER_TIMEOUT', 60),
+        // Comments with offset pagination can take >60s
+        'timeout' => (int) env('PARSER_TIMEOUT', 180),
     ],
 
     'telegram' => [

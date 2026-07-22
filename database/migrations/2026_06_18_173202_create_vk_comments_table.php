@@ -16,8 +16,15 @@ return new class extends Migration
             $table->foreignId('post_id')->constrained('vk_posts')->cascadeOnDelete();
             // VK reply id; unique together with post (not globally)
             $table->unsignedBigInteger('vk_comment_id');
-            $table->unsignedBigInteger('parent_comment_id')->nullable();
+            // VK parent reply id from parser (null = thread root)
+            $table->unsignedBigInteger('parent_vk_comment_id')->nullable();
+            // Local adjacency-list links (resolved after upsert)
+            $table->foreignId('parent_id')->nullable()->constrained('vk_comments')->nullOnDelete();
+            $table->foreignId('thread_root_id')->nullable()->constrained('vk_comments')->nullOnDelete();
+            $table->unsignedTinyInteger('depth')->default(0);
             $table->unique(['post_id', 'vk_comment_id']);
+            $table->index(['post_id', 'parent_vk_comment_id']);
+            $table->index(['post_id', 'thread_root_id']);
             $table->text('text');
             $table->unsignedBigInteger('author_id')->nullable();
             $table->string('url')->nullable();

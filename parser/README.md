@@ -93,6 +93,7 @@ Scrape comments for a wall post URL.
 - Up to 2 retries on timeout / network errors
 - Structured JSON logs to stdout
 - Comments are scraped via **m.vk.com** (desktop often hides replies for anonymous sessions); empty `data` is a valid response when the post has no public comments
+- Nested replies: expands collapsed controls; follows m.vk `offset=` pagination (`RepliesThreadNext__link` / «Показать все комментарии»); parent from `RepliesThread`, `?thread=`, offset `?reply=ROOT`, and DOM nesting
 
 ## Env
 
@@ -103,6 +104,8 @@ Scrape comments for a wall post URL.
 | `PARSER_PAGE_WAIT_MS`    | `4000`    | Wait after DOM load            |
 | `PARSER_REQUEST_GAP_MS`  | `1500`    | Min gap between navigations    |
 | `PARSER_USER_AGENT`      | Chrome UA | Override user-agent            |
+| `PARSER_COMMENT_EXPAND_ROUNDS` | `12` | Max expand-click rounds for comments |
+| `PARSER_COMMENT_EXPAND_WAIT_MS` | `900` | Wait after each expand round |
 
 ## Manual test
 

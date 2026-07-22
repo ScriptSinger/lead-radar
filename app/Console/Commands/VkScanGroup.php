@@ -89,10 +89,12 @@ class VkScanGroup extends Command
 
             if ($withComments) {
                 $this->line(sprintf(
-                    '  comments: fetched=%d created=%d updated=%d',
+                    '  comments: fetched=%d created=%d updated=%d roots=%d nested=%d',
                     $stats['comments_fetched'],
                     $stats['comments_created'],
                     $stats['comments_updated'],
+                    $stats['comments_roots'] ?? 0,
+                    $stats['comments_nested'] ?? 0,
                 ));
             }
 

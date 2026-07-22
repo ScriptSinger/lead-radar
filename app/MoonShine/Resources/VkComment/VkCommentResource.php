@@ -28,20 +28,19 @@ class VkCommentResource extends ModelResource
 
     protected string $column = 'vk_comment_id';
 
-    /**
-     * parent_comment_id stores the VK reply id (not local PK), so we show it
-     * as a number instead of a broken BelongsTo parent relation.
-     */
     protected function indexFields(): iterable
     {
         return [
             ID::make()->sortable(),
             BelongsTo::make('Post', 'post', resource: VkPostResource::class)
                 ->sortable(),
-            Number::make('VK comment id', 'vk_comment_id')->sortable(),
-            Number::make('Parent VK id', 'parent_comment_id'),
+            Number::make('Depth', 'depth')->sortable(),
+            Number::make('VK id', 'vk_comment_id')->sortable(),
+            Number::make('Parent VK', 'parent_vk_comment_id'),
+            BelongsTo::make('Parent', 'parent', resource: self::class),
+            BelongsTo::make('Thread root', 'threadRoot', resource: self::class),
             Text::make('Text', 'text'),
-            Number::make('Author id', 'author_id'),
+            Number::make('Author', 'author_id'),
             Url::make('Url', 'url'),
             Date::make('Posted at', 'posted_at')->format('Y-m-d H:i')->sortable(),
         ];
@@ -54,7 +53,10 @@ class VkCommentResource extends ModelResource
             BelongsTo::make('Post', 'post', resource: VkPostResource::class)
                 ->required(),
             Number::make('VK comment id', 'vk_comment_id')->required(),
-            Number::make('Parent VK id', 'parent_comment_id'),
+            Number::make('Parent VK id', 'parent_vk_comment_id'),
+            BelongsTo::make('Parent', 'parent', resource: self::class)->nullable(),
+            BelongsTo::make('Thread root', 'threadRoot', resource: self::class)->nullable(),
+            Number::make('Depth', 'depth')->default(0),
             Textarea::make('Text', 'text')->required(),
             Number::make('Author id', 'author_id'),
             Url::make('Url', 'url'),
@@ -68,11 +70,15 @@ class VkCommentResource extends ModelResource
             ID::make(),
             BelongsTo::make('Post', 'post', resource: VkPostResource::class),
             Number::make('VK comment id', 'vk_comment_id'),
-            Number::make('Parent VK id', 'parent_comment_id'),
+            Number::make('Parent VK id', 'parent_vk_comment_id'),
+            BelongsTo::make('Parent', 'parent', resource: self::class),
+            BelongsTo::make('Thread root', 'threadRoot', resource: self::class),
+            Number::make('Depth', 'depth'),
             Textarea::make('Text', 'text'),
             Number::make('Author id', 'author_id'),
             Url::make('Url', 'url'),
             Date::make('Posted at', 'posted_at')->format('Y-m-d H:i:s'),
+            HasMany::make('Replies', 'children', resource: self::class),
             HasMany::make('Leads', 'leads', resource: LeadResource::class),
         ];
     }

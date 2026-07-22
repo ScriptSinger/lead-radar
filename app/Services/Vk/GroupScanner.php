@@ -13,6 +13,7 @@ class GroupScanner
 {
     public function __construct(
         private readonly ParserClient $parser,
+        private readonly CommentTreeResolver $treeResolver,
     ) {}
 
     /**
@@ -26,6 +27,8 @@ class GroupScanner
      *     comments_fetched: int,
      *     comments_created: int,
      *     comments_updated: int,
+     *     comments_roots: int,
+     *     comments_nested: int,
      *     errors: list<string>
      * }
      */
@@ -39,6 +42,8 @@ class GroupScanner
             'comments_fetched' => 0,
             'comments_created' => 0,
             'comments_updated' => 0,
+            'comments_roots' => 0,
+            'comments_nested' => 0,
             'errors' => [],
         ];
 
@@ -80,6 +85,8 @@ class GroupScanner
                     $stats['comments_fetched'] += $commentStats['fetched'];
                     $stats['comments_created'] += $commentStats['created'];
                     $stats['comments_updated'] += $commentStats['updated'];
+                    $stats['comments_roots'] += $commentStats['roots'];
+                    $stats['comments_nested'] += $commentStats['nested'];
                     foreach ($commentStats['errors'] as $err) {
                         $stats['errors'][] = $err;
                     }
@@ -151,7 +158,14 @@ class GroupScanner
     }
 
     /**
-     * @return array{fetched: int, created: int, updated: int, errors: list<string>}
+     * @return array{
+     *     fetched: int,
+     *     created: int,
+     *     updated: int,
+     *     roots: int,
+     *     nested: int,
+     *     errors: list<string>
+     * }
      */
     private function scanCommentsForPost(VkPost $post): array
     {
@@ -159,6 +173,8 @@ class GroupScanner
             'fetched' => 0,
             'created' => 0,
             'updated' => 0,
+            'roots' => 0,
+            'nested' => 0,
             'errors' => [],
         ];
 
@@ -178,6 +194,11 @@ class GroupScanner
             }
         }
 
+        // Always resolve tree after batch upsert (handles parent order)
+        $tree = $this->treeResolver->resolveForPost($post);
+        $result['roots'] = $tree['roots'];
+        $result['nested'] = $tree['nested'];
+
         return $result;
     }
 
@@ -190,7 +211,6 @@ class GroupScanner
         $vkCommentId = $this->nullableInt($raw['vk_comment_id'] ?? null);
 
         if ($vkCommentId === null) {
-            // parser may return non-numeric legacy ids — skip rather than corrupt
             $rawId = (string) ($raw['vk_comment_id'] ?? '');
             if ($rawId === '' || ! ctype_digit($rawId)) {
                 throw new \InvalidArgumentException(
@@ -205,10 +225,14 @@ class GroupScanner
             $url = $post->url.'?reply='.$vkCommentId;
         }
 
-        $parentId = $this->nullableInt($raw['parent_comment_id'] ?? null);
+        // Parser field parent_comment_id = VK parent reply id
+        $parentVkId = $this->nullableInt(
+            $raw['parent_comment_id'] ?? $raw['parent_vk_comment_id'] ?? null
+        );
 
         $attributes = [
-            'parent_comment_id' => $parentId,
+            'parent_vk_comment_id' => $parentVkId,
+            // Tree links filled by CommentTreeResolver after full batch
             'text' => (string) ($raw['text'] ?? ''),
             'author_id' => $this->nullableInt($raw['author_id'] ?? null),
             'url' => $url,
@@ -232,6 +256,9 @@ class GroupScanner
         VkComment::query()->create([
             'post_id' => $post->id,
             'vk_comment_id' => $vkCommentId,
+            'parent_id' => null,
+            'thread_root_id' => null,
+            'depth' => 0,
             ...$attributes,
         ]);
 
