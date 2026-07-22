@@ -17,6 +17,14 @@ class VkPost extends Model
         'posted_at',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'posted_at' => 'datetime',
+            'author_id' => 'integer',
+        ];
+    }
+
     public function group(): BelongsTo
     {
         return $this->belongsTo(VkGroup::class, 'group_id');

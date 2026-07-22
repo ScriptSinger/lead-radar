@@ -14,8 +14,10 @@ return new class extends Migration
         Schema::create('vk_comments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('post_id')->constrained('vk_posts')->cascadeOnDelete();
-            $table->unsignedBigInteger('vk_comment_id')->unique();
+            // VK reply id; unique together with post (not globally)
+            $table->unsignedBigInteger('vk_comment_id');
             $table->unsignedBigInteger('parent_comment_id')->nullable();
+            $table->unique(['post_id', 'vk_comment_id']);
             $table->text('text');
             $table->unsignedBigInteger('author_id')->nullable();
             $table->string('url')->nullable();

@@ -14,7 +14,8 @@ return new class extends Migration
         Schema::create('vk_posts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('group_id')->constrained('vk_groups')->cascadeOnDelete();
-            $table->unsignedBigInteger('vk_post_id')->unique();
+            // Composite wall id from VK, e.g. "-151103485_1636363"
+            $table->string('vk_post_id', 64)->unique();
             $table->text('text')->nullable();
             $table->string('url');
             $table->unsignedBigInteger('author_id')->nullable();

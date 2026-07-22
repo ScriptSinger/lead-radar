@@ -18,6 +18,16 @@ class VkComment extends Model
         'posted_at',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'posted_at' => 'datetime',
+            'vk_comment_id' => 'integer',
+            'parent_comment_id' => 'integer',
+            'author_id' => 'integer',
+        ];
+    }
+
     public function post(): BelongsTo
     {
         return $this->belongsTo(VkPost::class, 'post_id');

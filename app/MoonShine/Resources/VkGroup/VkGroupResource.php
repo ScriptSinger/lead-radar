@@ -19,6 +19,9 @@ class VkGroupResource extends ModelResource
 
     protected string $title = 'VK Groups';
 
+    /** Shown in BelongsTo labels on related resources */
+    protected string $column = 'name';
+
     protected function indexFields(): iterable
     {
         return [

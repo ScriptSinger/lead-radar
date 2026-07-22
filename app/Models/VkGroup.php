@@ -14,6 +14,14 @@ class VkGroup extends Model
         'last_scan_at',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'active' => 'boolean',
+            'last_scan_at' => 'datetime',
+        ];
+    }
+
     public function posts(): HasMany
     {
         return $this->hasMany(VkPost::class, 'group_id');
