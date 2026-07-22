@@ -6,6 +6,7 @@ namespace App\MoonShine\Pages;
 
 use App\Models\Keyword;
 use App\Models\Lead;
+use App\Models\ScanRun;
 use App\Models\VkComment;
 use App\Models\VkGroup;
 use App\Models\VkPost;
@@ -58,6 +59,11 @@ class Dashboard extends Page
             ? Carbon::parse($lastScan)->format('Y-m-d H:i')
             : 'never';
 
+        $failedRuns24h = ScanRun::query()
+            ->whereIn('status', [ScanRun::STATUS_FAILED, ScanRun::STATUS_PARSER_DOWN])
+            ->where('started_at', '>=', now()->subDay())
+            ->count();
+
         $recentRows = Lead::query()
             ->with(['keyword', 'group'])
             ->where('status', 'new')
@@ -72,6 +78,25 @@ class Dashboard extends Page
                     : $lead->text,
                 'url' => $lead->url,
                 'found' => $lead->created_at?->format('Y-m-d H:i') ?? '',
+            ])
+            ->all();
+
+        $scanRows = ScanRun::query()
+            ->with('group')
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get()
+            ->map(static fn (ScanRun $run): array => [
+                'id' => $run->id,
+                'group' => $run->group?->name ?? '—',
+                'status' => $run->status,
+                'posts' => $run->posts_fetched,
+                'leads' => $run->leads_created,
+                'ms' => $run->duration_ms ?? '—',
+                'started' => $run->started_at?->format('Y-m-d H:i:s') ?? '',
+                'error' => $run->error_message
+                    ? mb_substr($run->error_message, 0, 80)
+                    : '',
             ])
             ->all();
 
@@ -98,10 +123,10 @@ class Dashboard extends Page
                     ValueMetric::make('Last scan')->value($lastScanLabel),
                 ])->columnSpan(3),
                 Column::make([
-                    ValueMetric::make('Posts in DB')->value($posts),
+                    ValueMetric::make('Failed scans 24h')->value($failedRuns24h),
                 ])->columnSpan(3),
                 Column::make([
-                    ValueMetric::make('Comments in DB')->value($comments),
+                    ValueMetric::make('Posts in DB')->value($posts),
                 ])->columnSpan(3),
                 Column::make([
                     ValueMetric::make('Keywords')->value($keywords),
@@ -118,6 +143,21 @@ class Dashboard extends Page
                     Url::make('VK', 'url')->blank(),
                     Text::make('Found', 'found'),
                 ], $recentRows),
+            ]),
+
+            LineBreak::make(),
+
+            Box::make('Recent scan runs', [
+                TableBuilder::make([
+                    Text::make('ID', 'id'),
+                    Text::make('Group', 'group'),
+                    Text::make('Status', 'status'),
+                    Text::make('Posts', 'posts'),
+                    Text::make('Leads+', 'leads'),
+                    Text::make('ms', 'ms'),
+                    Text::make('Started', 'started'),
+                    Text::make('Error', 'error'),
+                ], $scanRows),
             ]),
         ];
     }

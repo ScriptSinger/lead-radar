@@ -64,7 +64,7 @@ class VkDispatchScans extends Command
         foreach ($groups as $group) {
             $this->info("Sync scan group #{$group->id} {$group->name}");
             // Run job handle inline without queue
-            (new ScanVkGroupJob($group->id, $limit, $withComments))
+            (new ScanVkGroupJob($group->id, $limit, $withComments, 'manual'))
                 ->handle(app(\App\Services\Vk\GroupScanner::class), app(\App\Services\Vk\ParserClient::class));
         }
 

@@ -2,9 +2,12 @@
 
 namespace App\Services\Vk;
 
+use App\Exceptions\ParserUnavailableException;
+use App\Models\ScanRun;
 use App\Models\VkComment;
 use App\Models\VkGroup;
 use App\Models\VkPost;
+use App\Support\VkUrl;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -32,11 +35,20 @@ class GroupScanner
      *     comments_nested: int,
      *     leads_created: int,
      *     leads_updated: int,
-     *     errors: list<string>
+     *     errors: list<string>,
+     *     duration_ms: int,
+     *     scan_run_id: int|null
      * }
      */
-    public function scan(VkGroup $group, int $limit = 6, bool $withComments = false): array
-    {
+    public function scan(
+        VkGroup $group,
+        int $limit = 6,
+        bool $withComments = false,
+        string $trigger = 'manual',
+    ): array {
+        $startedAt = microtime(true);
+        $run = ScanRun::start($group, $trigger, $limit, $withComments);
+
         $stats = [
             'group_id' => $group->id,
             'posts_fetched' => 0,
@@ -50,97 +62,170 @@ class GroupScanner
             'leads_created' => 0,
             'leads_updated' => 0,
             'errors' => [],
+            'duration_ms' => 0,
+            'scan_run_id' => $run->id,
         ];
 
-        $rawPosts = $this->parser->scrapeGroup($group->url, $limit);
-        $stats['posts_fetched'] = count($rawPosts);
+        Log::info('vk.scan.started', [
+            'scan_run_id' => $run->id,
+            'group_id' => $group->id,
+            'group' => $group->name,
+            'url' => $group->url,
+            'limit' => $limit,
+            'with_comments' => $withComments,
+            'trigger' => $trigger,
+        ]);
 
-        /** @var list<VkPost> $savedPosts */
-        $savedPosts = [];
+        try {
+            if (! VkUrl::isValid($group->url)) {
+                throw new \InvalidArgumentException(VkUrl::validationMessage().' Got: '.$group->url);
+            }
 
-        foreach ($rawPosts as $raw) {
-            try {
-                [$post, $created] = $this->upsertPost($group, $raw);
-                $savedPosts[] = $post;
+            if (! $this->parser->health()) {
+                throw new ParserUnavailableException(
+                    'Parser is not healthy at '.config('services.parser.url')
+                );
+            }
 
-                if ($created) {
-                    $stats['posts_created']++;
-                } else {
-                    $stats['posts_updated']++;
-                }
-            } catch (Throwable $e) {
-                $message = "post upsert failed: {$e->getMessage()}";
-                $stats['errors'][] = $message;
-                Log::warning('vk.scan.post_failed', [
+            $rawPosts = $this->parser->scrapeGroup($group->url, $limit);
+            $stats['posts_fetched'] = count($rawPosts);
+
+            if ($stats['posts_fetched'] === 0) {
+                Log::warning('vk.scan.empty_posts', [
+                    'scan_run_id' => $run->id,
                     'group_id' => $group->id,
-                    'raw' => $raw,
-                    'error' => $e->getMessage(),
+                    'url' => $group->url,
                 ]);
             }
-        }
 
-        if ($withComments) {
-            foreach ($savedPosts as $post) {
-                if (! $post->url) {
-                    continue;
-                }
+            /** @var list<VkPost> $savedPosts */
+            $savedPosts = [];
 
+            foreach ($rawPosts as $raw) {
                 try {
-                    $commentStats = $this->scanCommentsForPost($post);
-                    $stats['comments_fetched'] += $commentStats['fetched'];
-                    $stats['comments_created'] += $commentStats['created'];
-                    $stats['comments_updated'] += $commentStats['updated'];
-                    $stats['comments_roots'] += $commentStats['roots'];
-                    $stats['comments_nested'] += $commentStats['nested'];
-                    foreach ($commentStats['errors'] as $err) {
-                        $stats['errors'][] = $err;
+                    [$post, $created] = $this->upsertPost($group, $raw);
+                    $savedPosts[] = $post;
+
+                    if ($created) {
+                        $stats['posts_created']++;
+                    } else {
+                        $stats['posts_updated']++;
                     }
                 } catch (Throwable $e) {
-                    $message = "comments for post {$post->vk_post_id}: {$e->getMessage()}";
+                    $message = "post upsert failed: {$e->getMessage()}";
                     $stats['errors'][] = $message;
-                    Log::warning('vk.scan.comments_failed', [
+                    Log::warning('vk.scan.post_failed', [
+                        'scan_run_id' => $run->id,
                         'group_id' => $group->id,
-                        'post_id' => $post->id,
                         'error' => $e->getMessage(),
                     ]);
                 }
             }
-        }
 
-        // Phase 3: match keywords against ALL posts of this group in DB
-        // (not only the ones just scraped — otherwise older threads with hits are skipped)
-        try {
-            $postsToMatch = VkPost::query()
-                ->where('group_id', $group->id)
-                ->with('comments')
-                ->orderByDesc('id')
-                ->get();
+            if ($withComments) {
+                foreach ($savedPosts as $post) {
+                    if (! $post->url) {
+                        continue;
+                    }
 
-            $leadStats = $this->leadMatcher->matchPosts($postsToMatch, withComments: true);
-            $stats['leads_created'] += $leadStats['created'];
-            $stats['leads_updated'] += $leadStats['updated'];
-        } catch (Throwable $e) {
-            $stats['errors'][] = "lead match group {$group->id}: {$e->getMessage()}";
-            Log::warning('vk.scan.lead_match_failed', [
+                    try {
+                        $commentStats = $this->scanCommentsForPost($post);
+                        $stats['comments_fetched'] += $commentStats['fetched'];
+                        $stats['comments_created'] += $commentStats['created'];
+                        $stats['comments_updated'] += $commentStats['updated'];
+                        $stats['comments_roots'] += $commentStats['roots'];
+                        $stats['comments_nested'] += $commentStats['nested'];
+                        foreach ($commentStats['errors'] as $err) {
+                            $stats['errors'][] = $err;
+                        }
+                    } catch (Throwable $e) {
+                        $message = "comments for post {$post->vk_post_id}: {$e->getMessage()}";
+                        $stats['errors'][] = $message;
+                        Log::warning('vk.scan.comments_failed', [
+                            'scan_run_id' => $run->id,
+                            'group_id' => $group->id,
+                            'post_id' => $post->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            try {
+                $postsToMatch = VkPost::query()
+                    ->where('group_id', $group->id)
+                    ->with('comments')
+                    ->orderByDesc('id')
+                    ->get();
+
+                $leadStats = $this->leadMatcher->matchPosts($postsToMatch, withComments: true);
+                $stats['leads_created'] += $leadStats['created'];
+                $stats['leads_updated'] += $leadStats['updated'];
+            } catch (Throwable $e) {
+                $stats['errors'][] = "lead match group {$group->id}: {$e->getMessage()}";
+                Log::warning('vk.scan.lead_match_failed', [
+                    'scan_run_id' => $run->id,
+                    'group_id' => $group->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            $group->forceFill(['last_scan_at' => now()])->save();
+
+            $stats['duration_ms'] = (int) round((microtime(true) - $startedAt) * 1000);
+            $run->markSuccess($stats, $stats['duration_ms']);
+
+            Log::info('vk.scan.finished', [
+                'scan_run_id' => $run->id,
                 'group_id' => $group->id,
+                'group' => $group->name,
+                'duration_ms' => $stats['duration_ms'],
+                'posts_fetched' => $stats['posts_fetched'],
+                'posts_created' => $stats['posts_created'],
+                'posts_updated' => $stats['posts_updated'],
+                'comments_fetched' => $stats['comments_fetched'],
+                'leads_created' => $stats['leads_created'],
+                'error_count' => count($stats['errors']),
+            ]);
+
+            return $stats;
+        } catch (ParserUnavailableException $e) {
+            $stats['duration_ms'] = (int) round((microtime(true) - $startedAt) * 1000);
+            $stats['errors'][] = $e->getMessage();
+            $run->markFailed(
+                $e->getMessage(),
+                $stats['duration_ms'],
+                ScanRun::STATUS_PARSER_DOWN,
+                $stats,
+            );
+
+            Log::error('vk.scan.parser_down', [
+                'scan_run_id' => $run->id,
+                'group_id' => $group->id,
+                'duration_ms' => $stats['duration_ms'],
                 'error' => $e->getMessage(),
             ]);
+
+            throw $e;
+        } catch (Throwable $e) {
+            $stats['duration_ms'] = (int) round((microtime(true) - $startedAt) * 1000);
+            $stats['errors'][] = $e->getMessage();
+            $run->markFailed($e->getMessage(), $stats['duration_ms'], ScanRun::STATUS_FAILED, $stats);
+
+            Log::error('vk.scan.failed', [
+                'scan_run_id' => $run->id,
+                'group_id' => $group->id,
+                'duration_ms' => $stats['duration_ms'],
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
         }
-
-        $group->forceFill(['last_scan_at' => now()])->save();
-
-        Log::info('vk.scan.group_done', [
-            'group_id' => $group->id,
-            'url' => $group->url,
-            'stats' => $stats,
-        ]);
-
-        return $stats;
     }
 
     /**
      * @param  array<string, mixed>  $raw
-     * @return array{0: VkPost, 1: bool} [model, wasCreated]
+     * @return array{0: VkPost, 1: bool}
      */
     private function upsertPost(VkGroup $group, array $raw): array
     {
@@ -228,7 +313,6 @@ class GroupScanner
 
     /**
      * @param  array<string, mixed>  $raw
-     * @return bool wasCreated
      */
     private function upsertComment(VkPost $post, array $raw): bool
     {

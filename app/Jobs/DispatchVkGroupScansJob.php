@@ -22,6 +22,7 @@ class DispatchVkGroupScansJob implements ShouldQueue
         public int $limit = 6,
         public bool $withComments = true,
         public ?int $onlyGroupId = null,
+        public string $trigger = 'schedule',
     ) {
         $this->onQueue('vk.scan');
     }
@@ -40,12 +41,24 @@ class DispatchVkGroupScansJob implements ShouldQueue
         $delaySeconds = max(0, (int) config('services.vk.scan_group_delay_seconds', 45));
         $delay = 0;
         $dispatched = 0;
+        $skipped = 0;
 
         foreach ($groups as $group) {
+            if (! \App\Support\VkUrl::isValid($group->url)) {
+                Log::warning('vk.scan.dispatch.invalid_url', [
+                    'group_id' => $group->id,
+                    'url' => $group->url,
+                ]);
+                $skipped++;
+
+                continue;
+            }
+
             ScanVkGroupJob::dispatch(
                 $group->id,
                 $this->limit,
                 $this->withComments,
+                $this->trigger,
             )->delay(now()->addSeconds($delay));
 
             $dispatched++;
@@ -54,9 +67,11 @@ class DispatchVkGroupScansJob implements ShouldQueue
 
         Log::info('vk.scan.dispatch_done', [
             'dispatched' => $dispatched,
+            'skipped_invalid_url' => $skipped,
             'delay_step' => $delaySeconds,
             'with_comments' => $this->withComments,
             'limit' => $this->limit,
+            'trigger' => $this->trigger,
         ]);
     }
 }

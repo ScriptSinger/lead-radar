@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\VkGroup;
 use App\Services\Vk\GroupScanner;
 use App\Services\Vk\ParserClient;
+use App\Support\VkUrl;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -75,8 +76,15 @@ class VkScanGroup extends Command
             $this->line('');
             $this->info("→ [{$group->id}] {$group->name} ({$group->url})");
 
+            if (! VkUrl::isValid($group->url)) {
+                $failedGroups++;
+                $this->error('  skipped: '.VkUrl::validationMessage());
+
+                continue;
+            }
+
             try {
-                $stats = $scanner->scan($group, $limit, $withComments);
+                $stats = $scanner->scan($group, $limit, $withComments, 'manual');
             } catch (Throwable $e) {
                 $failedGroups++;
                 $this->error("  failed: {$e->getMessage()}");
@@ -113,9 +121,11 @@ class VkScanGroup extends Command
             }
 
             $this->line(sprintf(
-                '  leads: created=%d updated=%d',
+                '  leads: created=%d updated=%d · %dms · run#%s',
                 $stats['leads_created'] ?? 0,
                 $stats['leads_updated'] ?? 0,
+                $stats['duration_ms'] ?? 0,
+                $stats['scan_run_id'] ?? '—',
             ));
 
             if ($stats['errors'] !== []) {

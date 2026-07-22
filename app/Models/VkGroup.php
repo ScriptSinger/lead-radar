@@ -31,4 +31,9 @@ class VkGroup extends Model
     {
         return $this->hasMany(Lead::class, 'group_id');
     }
+
+    public function scanRuns(): HasMany
+    {
+        return $this->hasMany(ScanRun::class, 'group_id');
+    }
 }

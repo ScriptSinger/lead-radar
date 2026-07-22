@@ -110,7 +110,13 @@ class VkGroupResource extends ModelResource
         $limit = max(1, min(30, (int) config('services.vk.scan_limit', 6)));
         $withComments = (bool) config('services.vk.scan_with_comments', true);
 
-        ScanVkGroupJob::dispatch($group->id, $limit, $withComments);
+        if (! \App\Support\VkUrl::isValid($group->url)) {
+            toast(\App\Support\VkUrl::validationMessage(), ToastType::ERROR);
+
+            return;
+        }
+
+        ScanVkGroupJob::dispatch($group->id, $limit, $withComments, 'admin');
 
         toast(sprintf(
             'Scan queued for «%s» (queue: vk.scan)',
