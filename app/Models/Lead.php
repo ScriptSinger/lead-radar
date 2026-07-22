@@ -17,7 +17,15 @@ class Lead extends Model
         'url',
         'score',
         'status',
+        'dedupe_key',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'score' => 'integer',
+        ];
+    }
 
     public function group(): BelongsTo
     {

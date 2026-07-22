@@ -14,10 +14,11 @@ class GroupScanner
     public function __construct(
         private readonly ParserClient $parser,
         private readonly CommentTreeResolver $treeResolver,
+        private readonly LeadMatcher $leadMatcher,
     ) {}
 
     /**
-     * Scan a single active group: fetch posts (and optionally comments), upsert to DB.
+     * Scan a single active group: fetch posts (and optionally comments), upsert, match leads.
      *
      * @return array{
      *     group_id: int,
@@ -29,6 +30,8 @@ class GroupScanner
      *     comments_updated: int,
      *     comments_roots: int,
      *     comments_nested: int,
+     *     leads_created: int,
+     *     leads_updated: int,
      *     errors: list<string>
      * }
      */
@@ -44,6 +47,8 @@ class GroupScanner
             'comments_updated' => 0,
             'comments_roots' => 0,
             'comments_nested' => 0,
+            'leads_created' => 0,
+            'leads_updated' => 0,
             'errors' => [],
         ];
 
@@ -100,6 +105,26 @@ class GroupScanner
                     ]);
                 }
             }
+        }
+
+        // Phase 3: match keywords against ALL posts of this group in DB
+        // (not only the ones just scraped — otherwise older threads with hits are skipped)
+        try {
+            $postsToMatch = VkPost::query()
+                ->where('group_id', $group->id)
+                ->with('comments')
+                ->orderByDesc('id')
+                ->get();
+
+            $leadStats = $this->leadMatcher->matchPosts($postsToMatch, withComments: true);
+            $stats['leads_created'] += $leadStats['created'];
+            $stats['leads_updated'] += $leadStats['updated'];
+        } catch (Throwable $e) {
+            $stats['errors'][] = "lead match group {$group->id}: {$e->getMessage()}";
+            Log::warning('vk.scan.lead_match_failed', [
+                'group_id' => $group->id,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         $group->forceFill(['last_scan_at' => now()])->save();
@@ -194,7 +219,6 @@ class GroupScanner
             }
         }
 
-        // Always resolve tree after batch upsert (handles parent order)
         $tree = $this->treeResolver->resolveForPost($post);
         $result['roots'] = $tree['roots'];
         $result['nested'] = $tree['nested'];
@@ -225,14 +249,12 @@ class GroupScanner
             $url = $post->url.'?reply='.$vkCommentId;
         }
 
-        // Parser field parent_comment_id = VK parent reply id
         $parentVkId = $this->nullableInt(
             $raw['parent_comment_id'] ?? $raw['parent_vk_comment_id'] ?? null
         );
 
         $attributes = [
             'parent_vk_comment_id' => $parentVkId,
-            // Tree links filled by CommentTreeResolver after full batch
             'text' => (string) ($raw['text'] ?? ''),
             'author_id' => $this->nullableInt($raw['author_id'] ?? null),
             'url' => $url,

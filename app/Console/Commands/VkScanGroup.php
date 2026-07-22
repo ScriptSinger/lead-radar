@@ -54,6 +54,8 @@ class VkScanGroup extends Command
             'comments_fetched' => 0,
             'comments_created' => 0,
             'comments_updated' => 0,
+            'leads_created' => 0,
+            'leads_updated' => 0,
             'errors' => 0,
         ];
 
@@ -78,6 +80,8 @@ class VkScanGroup extends Command
             $totals['comments_fetched'] += $stats['comments_fetched'];
             $totals['comments_created'] += $stats['comments_created'];
             $totals['comments_updated'] += $stats['comments_updated'];
+            $totals['leads_created'] += $stats['leads_created'] ?? 0;
+            $totals['leads_updated'] += $stats['leads_updated'] ?? 0;
             $totals['errors'] += count($stats['errors']);
 
             $this->line(sprintf(
@@ -98,6 +102,12 @@ class VkScanGroup extends Command
                 ));
             }
 
+            $this->line(sprintf(
+                '  leads: created=%d updated=%d',
+                $stats['leads_created'] ?? 0,
+                $stats['leads_updated'] ?? 0,
+            ));
+
             if ($stats['errors'] !== []) {
                 foreach ($stats['errors'] as $error) {
                     $this->warn("  ! {$error}");
@@ -107,11 +117,13 @@ class VkScanGroup extends Command
 
         $this->newLine();
         $this->info(sprintf(
-            'Done. posts +%d/~%d, comments +%d/~%d, group failures=%d, row errors=%d',
+            'Done. posts +%d/~%d, comments +%d/~%d, leads +%d/~%d, group failures=%d, row errors=%d',
             $totals['posts_created'],
             $totals['posts_updated'],
             $totals['comments_created'],
             $totals['comments_updated'],
+            $totals['leads_created'],
+            $totals['leads_updated'],
             $failedGroups,
             $totals['errors'],
         ));

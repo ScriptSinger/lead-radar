@@ -22,7 +22,12 @@ return new class extends Migration
             $table->string('url');
             $table->unsignedInteger('score')->default(0);
             $table->string('status')->default('new'); // 'new', 'processed', 'ignored'
+            // Unique match key: "p:{postId}:k:{keywordId}" or "c:{commentId}:k:{keywordId}"
+            $table->string('dedupe_key', 80)->unique();
             $table->timestamps();
+
+            $table->index(['status', 'created_at']);
+            $table->index(['group_id', 'status']);
         });
     }
 
