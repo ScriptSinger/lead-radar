@@ -44,6 +44,15 @@ return [
     'telegram' => [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
         'chat_id' => env('TELEGRAM_CHAT_ID'),
+        // Comma-separated chat ids allowed for bot commands (empty = only chat_id)
+        'allowed_chat_ids' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TELEGRAM_ALLOWED_CHAT_IDS', env('TELEGRAM_CHAT_ID', '')))
+        ))),
+        'notify_enabled' => filter_var(env('TELEGRAM_NOTIFY_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'webhook_url' => env('TELEGRAM_WEBHOOK_URL'),
+        'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
+        'ngrok_api_url' => env('NGROK_API_URL', 'http://ngrok:4040'),
     ],
 
     /*
