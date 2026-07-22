@@ -31,7 +31,8 @@ class VkPostResource extends ModelResource
 
     protected string $title = 'VK Posts';
 
-    protected string $column = 'vk_post_id';
+    /** Label in BelongsTo / filters (accessor on VkPost) */
+    protected string $column = 'display_name';
 
     protected function indexFields(): iterable
     {

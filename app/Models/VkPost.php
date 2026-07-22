@@ -25,6 +25,20 @@ class VkPost extends Model
         ];
     }
 
+    /**
+     * Human-readable label for admin selects / filters.
+     */
+    public function getDisplayNameAttribute(): string
+    {
+        $text = trim(preg_replace("/\s+/u", ' ', (string) ($this->text ?? '')) ?? '');
+
+        if ($text !== '') {
+            return mb_strlen($text) > 80 ? mb_substr($text, 0, 80).'…' : $text;
+        }
+
+        return (string) $this->vk_post_id;
+    }
+
     public function group(): BelongsTo
     {
         return $this->belongsTo(VkGroup::class, 'group_id');
