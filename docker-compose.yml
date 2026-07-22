@@ -86,20 +86,18 @@ services:
       mysql:
         condition: service_healthy
     restart: unless-stopped
-    # Wait for DB, then process queues (vk.scan needs long Playwright timeout)
+    # Wait for DB, then process queues (vk.scan needs long Playwright timeout).
+    # IMPORTANT: keep queue:work args on ONE logical line — bare newlines inside
+    # sh -c end the command early (worker would listen only to "default").
     # Note: do not use `db:show` here — it may fail without php-intl even when DB is up.
-    command: >
-      sh -c "
-        echo 'worker: waiting for database...';
-        until php artisan migrate:status >/dev/null 2>&1; do sleep 2; done;
-        echo 'worker: starting queue:work';
-        php artisan queue:work $${QUEUE_CONNECTION:-database}
-          --queue=vk.scan,telegram.webhook,broadcast.telegram,default
-          --tries=2
-          --timeout=300
-          --sleep=1
-          -vvv
-      "
+    command:
+      - sh
+      - -c
+      - |
+        echo 'worker: waiting for database...'
+        until php artisan migrate:status >/dev/null 2>&1; do sleep 2; done
+        echo 'worker: starting queue:work'
+        exec php artisan queue:work "$${QUEUE_CONNECTION:-database}" --queue=vk.scan,telegram.webhook,broadcast.telegram,default --tries=2 --timeout=300 --sleep=1 -vvv
 
   scheduler:
     build:

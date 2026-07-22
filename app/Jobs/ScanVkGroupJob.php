@@ -32,12 +32,19 @@ class ScanVkGroupJob implements ShouldQueue
         return [30, 90, 180];
     }
 
+    /** Default on property so older queued payloads without this field still run. */
+    public string $trigger = 'job';
+
     public function __construct(
         public int $groupId,
         public int $limit = 6,
         public bool $withComments = true,
-        public string $trigger = 'job',
+        ?string $trigger = null,
     ) {
+        if ($trigger !== null) {
+            $this->trigger = $trigger;
+        }
+
         $this->onQueue('vk.scan');
     }
 

@@ -6,10 +6,17 @@ namespace App\MoonShine\Resources\ScanSetting;
 
 use App\Models\ScanSetting;
 use App\Models\VkGroup;
+use App\MoonShine\Resources\ScanSetting\Pages\ScanSettingIndexPage;
+use App\Services\Vk\ScanSchedule;
 use App\Support\PostWindow;
+use MoonShine\Contracts\Core\PageContract;
+use MoonShine\Laravel\Pages\Crud\DetailPage;
+use MoonShine\Laravel\Pages\Crud\FormPage;
 use MoonShine\Laravel\Resources\ModelResource;
+use MoonShine\Support\Attributes\AsyncMethod;
 use MoonShine\Support\Enums\Action;
 use MoonShine\Support\Enums\SortDirection;
+use MoonShine\Support\Enums\ToastType;
 use MoonShine\Support\ListOf;
 use MoonShine\UI\Components\Alert;
 use MoonShine\UI\Components\Layout\Box;
@@ -38,6 +45,18 @@ class ScanSettingResource extends ModelResource
     protected SortDirection $sortDirection = SortDirection::ASC;
 
     /**
+     * @return list<class-string<PageContract>>
+     */
+    protected function pages(): array
+    {
+        return [
+            ScanSettingIndexPage::class,
+            FormPage::class,
+            DetailPage::class,
+        ];
+    }
+
+    /**
      * @return ListOf<Action>
      */
     protected function activeActions(): ListOf
@@ -47,6 +66,28 @@ class ScanSettingResource extends ModelResource
             Action::VIEW,
             Action::UPDATE,
         ]);
+    }
+
+    /**
+     * Immediately queue a scan wave (does not wait for interval).
+     */
+    #[AsyncMethod]
+    public function runNow(): void
+    {
+        $result = app(ScanSchedule::class)->dispatchNow('admin');
+
+        if (! $result['dispatched']) {
+            toast('No active VK groups to scan', ToastType::WARNING);
+
+            return;
+        }
+
+        toast(sprintf(
+            'Scan wave queued for %d group(s) (limit=%d, comments=%s). Worker must be running on queue vk.scan.',
+            $result['active_groups'],
+            $result['limit'],
+            $result['with_comments'] ? 'yes' : 'no',
+        ));
     }
 
     protected function indexFields(): iterable
@@ -78,20 +119,24 @@ class ScanSettingResource extends ModelResource
 
         return [
             Box::make('Schedule', [
+                Alert::make('information-circle', 'primary')
+                    ->content(
+                        'Save only stores settings — it does NOT start a scan. '
+                        .'Automatic waves run when Interval has passed since Last dispatched. '
+                        .'To start immediately: list page → «Run scan now», or clear Last dispatched / set it in the past. '
+                        .$waveHint
+                    ),
                 Switcher::make('Schedule enabled', 'schedule_enabled')
-                    ->hint('Off = scheduler tick does nothing (manual scan still works).'),
+                    ->hint('Off = scheduler tick does nothing (manual «Run scan now» still works).'),
                 Number::make('Interval (minutes)', 'interval_minutes')
                     ->min(5)
                     ->max(1440)
                     ->required()
-                    ->hint('How often a new fan-out starts. Competitive leads: 20–40. Many groups: raise so wave fits. '.$waveHint),
-                // Alert is a UI component, not a DB field (Text/readonly was submitted as wave_estimate).
-                Alert::make('information-circle', 'primary')
-                    ->content('Wave estimate (info only): '.$waveHint),
+                    ->hint('How often a new fan-out starts. Competitive leads: 20–40. Many groups: raise so wave fits.'),
                 Date::make('Last dispatched at', 'last_dispatched_at')
                     ->withTime()
                     ->format('Y-m-d H:i:s')
-                    ->hint('Updated automatically by scheduler. Set in the past to force next tick sooner.'),
+                    ->hint('Set by scheduler / Run scan now. Clear or set in the past to allow the next auto tick sooner.'),
             ]),
 
             Box::make('Rate limit & volume', [

@@ -97,6 +97,12 @@ class ScanScheduleTest extends TestCase
 
     public function test_tick_runs_again_after_interval(): void
     {
+        VkGroup::query()->create([
+            'name' => 'G',
+            'url' => 'https://vk.com/g2',
+            'active' => true,
+        ]);
+
         $settings = ScanSetting::current();
         $settings->forceFill([
             'schedule_enabled' => true,
@@ -138,5 +144,27 @@ class ScanScheduleTest extends TestCase
         Queue::assertPushed(\App\Jobs\ScanVkGroupJob::class, function (\App\Jobs\ScanVkGroupJob $job) {
             return $job->limit === 5 && $job->withComments === false;
         });
+    }
+
+    public function test_dispatch_now_ignores_interval(): void
+    {
+        VkGroup::query()->create([
+            'name' => 'G',
+            'url' => 'https://vk.com/g',
+            'active' => true,
+        ]);
+
+        ScanSetting::current()->forceFill([
+            'schedule_enabled' => true,
+            'interval_minutes' => 30,
+            'last_dispatched_at' => now(), // just ran — tick would skip
+        ])->save();
+        ScanSetting::forgetCache();
+
+        $result = app(ScanSchedule::class)->dispatchNow('admin');
+
+        $this->assertTrue($result['dispatched']);
+        $this->assertSame(1, $result['active_groups']);
+        Queue::assertPushed(DispatchVkGroupScansJob::class, 1);
     }
 }

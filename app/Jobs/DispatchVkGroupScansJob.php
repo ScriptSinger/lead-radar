@@ -20,12 +20,19 @@ class DispatchVkGroupScansJob implements ShouldQueue
 
     public int $timeout = 60;
 
+    /** Default on property so older queued payloads without this field still run. */
+    public string $trigger = 'schedule';
+
     public function __construct(
         public ?int $limit = null,
         public ?bool $withComments = null,
         public ?int $onlyGroupId = null,
-        public string $trigger = 'schedule',
+        ?string $trigger = null,
     ) {
+        if ($trigger !== null) {
+            $this->trigger = $trigger;
+        }
+
         $this->onQueue('vk.scan');
     }
 
@@ -35,6 +42,7 @@ class DispatchVkGroupScansJob implements ShouldQueue
         $limit = max(1, min(30, $this->limit ?? $settings->normalizedLimit()));
         $withComments = $this->withComments ?? (bool) $settings->with_comments;
         $delaySeconds = $settings->normalizedGroupDelaySeconds();
+        $trigger = $this->trigger ?: 'schedule';
 
         $query = VkGroup::query()
             ->where('active', true)
@@ -64,7 +72,7 @@ class DispatchVkGroupScansJob implements ShouldQueue
                 $group->id,
                 $limit,
                 $withComments,
-                $this->trigger,
+                $trigger,
             )->delay(now()->addSeconds($delay));
 
             $dispatched++;
@@ -78,7 +86,7 @@ class DispatchVkGroupScansJob implements ShouldQueue
             'with_comments' => $withComments,
             'limit' => $limit,
             'post_window' => $settings->normalizedPostWindow(),
-            'trigger' => $this->trigger,
+            'trigger' => $trigger,
         ]);
     }
 }
