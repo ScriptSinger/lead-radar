@@ -56,6 +56,16 @@ services:
       - db_data:/var/lib/mysql
     networks:
       - laravel
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost -u$$MYSQL_USER -p$$MYSQL_PASSWORD || exit 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
 
   redis:
     image: redis:7-alpine
@@ -72,8 +82,46 @@ services:
       - ./:/var/www/html
     networks:
       - laravel
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    # Wait for DB, then process queues (vk.scan needs long Playwright timeout)
+    # Note: do not use `db:show` here — it may fail without php-intl even when DB is up.
     command: >
-      sh -c "php artisan queue:work redis --queue=telegram.webhook,broadcast.telegram --tries=3 --timeout=90 --sleep=1 -vvv"
+      sh -c "
+        echo 'worker: waiting for database...';
+        until php artisan migrate:status >/dev/null 2>&1; do sleep 2; done;
+        echo 'worker: starting queue:work';
+        php artisan queue:work $${QUEUE_CONNECTION:-database}
+          --queue=vk.scan,telegram.webhook,broadcast.telegram,default
+          --tries=2
+          --timeout=300
+          --sleep=1
+          -vvv
+      "
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/php/php.dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - laravel
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo 'scheduler: waiting for database...';
+        until php artisan migrate:status >/dev/null 2>&1; do sleep 2; done;
+        echo 'scheduler: starting schedule:work';
+        php artisan schedule:work --verbose
+      "
 
   parser:
     image: mcr.microsoft.com/playwright:v1.61.0-jammy

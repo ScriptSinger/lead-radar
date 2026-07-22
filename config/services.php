@@ -46,4 +46,16 @@ return [
         'chat_id' => env('TELEGRAM_CHAT_ID'),
     ],
 
+    /*
+    | VK scan automation (Phase 5)
+    */
+    'vk' => [
+        'scan_limit' => (int) env('VK_SCAN_LIMIT', 6),
+        'scan_with_comments' => filter_var(env('VK_SCAN_WITH_COMMENTS', true), FILTER_VALIDATE_BOOL),
+        // Stagger between group jobs to reduce VK/parser pressure
+        'scan_group_delay_seconds' => (int) env('VK_SCAN_GROUP_DELAY_SECONDS', 45),
+        // Schedule interval for schedule:work / cron (used in routes/console.php docs only if needed)
+        'scan_schedule' => env('VK_SCAN_SCHEDULE', 'hourly'),
+    ],
+
 ];

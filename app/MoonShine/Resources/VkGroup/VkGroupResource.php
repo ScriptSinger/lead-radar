@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\MoonShine\Resources\VkGroup;
 
+use App\Jobs\ScanVkGroupJob;
 use App\Models\VkGroup;
+use App\MoonShine\Resources\VkGroup\Pages\VkGroupDetailPage;
+use App\MoonShine\Resources\VkGroup\Pages\VkGroupFormPage;
 use App\MoonShine\Resources\VkGroup\Pages\VkGroupIndexPage;
-use App\Services\Vk\GroupScanner;
-use App\Services\Vk\ParserClient;
 use MoonShine\Contracts\Core\PageContract;
-use MoonShine\Laravel\Pages\Crud\DetailPage;
-use MoonShine\Laravel\Pages\Crud\FormPage;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\Support\Attributes\AsyncMethod;
 use MoonShine\Support\Enums\ToastType;
@@ -19,7 +18,6 @@ use MoonShine\UI\Fields\ID;
 use MoonShine\UI\Fields\Switcher;
 use MoonShine\UI\Fields\Text;
 use MoonShine\UI\Fields\Url;
-use Throwable;
 
 /**
  * @extends ModelResource<VkGroup>
@@ -40,8 +38,8 @@ class VkGroupResource extends ModelResource
     {
         return [
             VkGroupIndexPage::class,
-            FormPage::class,
-            DetailPage::class,
+            VkGroupFormPage::class,
+            VkGroupDetailPage::class,
         ];
     }
 
@@ -81,11 +79,12 @@ class VkGroupResource extends ModelResource
         ];
     }
 
+    /**
+     * Queue a scan for this group (does not block the admin request).
+     */
     #[AsyncMethod]
-    public function scanNow(
-        ParserClient $parser,
-        GroupScanner $scanner,
-    ): void {
+    public function scanNow(): void
+    {
         $id = (int) request('resourceItem');
 
         if ($id <= 0) {
@@ -102,24 +101,20 @@ class VkGroupResource extends ModelResource
             return;
         }
 
-        if (! $parser->health()) {
-            toast('Parser is not healthy', ToastType::ERROR);
+        if (! $group->active) {
+            toast('Group is inactive', ToastType::WARNING);
 
             return;
         }
 
-        try {
-            $stats = $scanner->scan($group, limit: 6, withComments: true);
-            toast(sprintf(
-                'Scan OK: posts +%d/~%d, comments +%d, leads +%d',
-                $stats['posts_created'],
-                $stats['posts_updated'],
-                $stats['comments_created'] + $stats['comments_updated'],
-                $stats['leads_created'],
-            ));
-        } catch (Throwable $e) {
-            report($e);
-            toast('Scan failed: '.$e->getMessage(), ToastType::ERROR);
-        }
+        $limit = max(1, min(30, (int) config('services.vk.scan_limit', 6)));
+        $withComments = (bool) config('services.vk.scan_with_comments', true);
+
+        ScanVkGroupJob::dispatch($group->id, $limit, $withComments);
+
+        toast(sprintf(
+            'Scan queued for «%s» (queue: vk.scan)',
+            $group->name,
+        ));
     }
 }

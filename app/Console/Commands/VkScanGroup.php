@@ -10,21 +10,31 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Throwable;
 
-#[Signature('vk:scan {--group= : Scan a single group by id} {--limit=6 : Max posts per group (1-30)} {--with-comments : Also scrape comments for each post}')]
+#[Signature('vk:scan {--group= : Scan a single group by id} {--limit=6 : Max posts per group (1-30)} {--with-comments : Also scrape comments for each post} {--queue : Dispatch to queue vk.scan instead of running sync}')]
 #[Description('Scan active VK groups via parser and persist posts/comments')]
 class VkScanGroup extends Command
 {
     public function handle(GroupScanner $scanner, ParserClient $parser): int
     {
+        $limit = max(1, min(30, (int) $this->option('limit')));
+        $withComments = (bool) $this->option('with-comments');
+        $groupId = $this->option('group');
+
+        if ($this->option('queue')) {
+            $this->call('vk:dispatch-scans', array_filter([
+                '--group' => $groupId,
+                '--limit' => $limit,
+                '--with-comments' => $withComments ? '1' : '0',
+            ], static fn ($v) => $v !== null && $v !== ''));
+
+            return self::SUCCESS;
+        }
+
         if (! $parser->health()) {
             $this->error('Parser is not healthy at '.config('services.parser.url'));
 
             return self::FAILURE;
         }
-
-        $limit = max(1, min(30, (int) $this->option('limit')));
-        $withComments = (bool) $this->option('with-comments');
-        $groupId = $this->option('group');
 
         $query = VkGroup::query()->where('active', true);
 
