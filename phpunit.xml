@@ -32,5 +32,7 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="TELEGRAM_NOTIFY_ENABLED" value="false"/>
+        <env name="PARSER_URL" value="http://parser.test"/>
     </php>
 </phpunit>

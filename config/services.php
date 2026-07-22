@@ -56,14 +56,21 @@ return [
     ],
 
     /*
-    | VK scan automation (Phase 5)
+    |--------------------------------------------------------------------------
+    | VK scan automation + rate limits (Phases 5 & 8)
+    |--------------------------------------------------------------------------
+    |
+    | Keep fan-out staggered (scan_group_delay_seconds) and volume low
+    | (scan_limit). See docs/VK_RATE_LIMITS.md for captcha/block strategy.
+    | Parser-side gap: PARSER_REQUEST_GAP_MS in the parser service.
+    |
     */
     'vk' => [
         'scan_limit' => (int) env('VK_SCAN_LIMIT', 6),
         'scan_with_comments' => filter_var(env('VK_SCAN_WITH_COMMENTS', true), FILTER_VALIDATE_BOOL),
-        // Stagger between group jobs to reduce VK/parser pressure
+        // Stagger between group jobs to reduce VK/parser pressure (seconds)
         'scan_group_delay_seconds' => (int) env('VK_SCAN_GROUP_DELAY_SECONDS', 45),
-        // Schedule interval for schedule:work / cron (used in routes/console.php docs only if needed)
+        // Documented schedule cadence (actual schedule is in routes/console.php)
         'scan_schedule' => env('VK_SCAN_SCHEDULE', 'hourly'),
     ],
 
