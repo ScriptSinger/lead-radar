@@ -15,6 +15,9 @@ class ScanRun extends Model
 
     public const STATUS_PARSER_DOWN = 'parser_down';
 
+    /** VK captcha / challenge / login wall / soft block (from parser probe). */
+    public const STATUS_CAPTCHA = 'captcha';
+
     protected $fillable = [
         'group_id',
         'trigger',

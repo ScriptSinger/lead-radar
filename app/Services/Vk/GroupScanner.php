@@ -3,6 +3,7 @@
 namespace App\Services\Vk;
 
 use App\Exceptions\ParserUnavailableException;
+use App\Exceptions\VkScrapeException;
 use App\Models\ScanRun;
 use App\Models\ScanSetting;
 use App\Models\VkComment;
@@ -116,6 +117,8 @@ class GroupScanner
                     'scan_run_id' => $run->id,
                     'group_id' => $group->id,
                     'url' => $group->url,
+                    'window_cutoff' => $stats['window_cutoff'],
+                    'hint' => 'Parser returned []. If not a quiet wall: check parser logs for vk.page_probe (captcha/login/blocked).',
                 ]);
             }
 
@@ -204,7 +207,17 @@ class GroupScanner
                 ]);
             }
 
-            $group->forceFill(['last_scan_at' => now()])->save();
+            // Empty scrape: do not advance last_scan_at (preserves since_last_scan window
+            // when captcha was misclassified as empty, or wall temporarily empty).
+            if ($stats['posts_fetched'] > 0) {
+                $group->forceFill(['last_scan_at' => now()])->save();
+            } else {
+                Log::warning('vk.scan.skip_last_scan_at', [
+                    'scan_run_id' => $run->id,
+                    'group_id' => $group->id,
+                    'reason' => 'posts_fetched=0',
+                ]);
+            }
 
             $stats['duration_ms'] = (int) round((microtime(true) - $startedAt) * 1000);
             $run->markSuccess($stats, $stats['duration_ms']);
@@ -241,6 +254,32 @@ class GroupScanner
                 'group_id' => $group->id,
                 'duration_ms' => $stats['duration_ms'],
                 'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        } catch (VkScrapeException $e) {
+            $stats['duration_ms'] = (int) round((microtime(true) - $startedAt) * 1000);
+            $stats['errors'][] = $e->getMessage();
+            $stats['scrape_code'] = $e->errorCode;
+            $stats['scrape_diagnostics'] = $e->diagnostics;
+
+            $status = $e->isBlocking()
+                ? ScanRun::STATUS_CAPTCHA
+                : ScanRun::STATUS_FAILED;
+
+            $run->markFailed(
+                $e->getMessage(),
+                $stats['duration_ms'],
+                $status,
+                $stats,
+            );
+
+            Log::error('vk.scan.scrape_blocked', [
+                'scan_run_id' => $run->id,
+                'group_id' => $group->id,
+                'group' => $group->name,
+                'duration_ms' => $stats['duration_ms'],
+                ...$e->context(),
             ]);
 
             throw $e;

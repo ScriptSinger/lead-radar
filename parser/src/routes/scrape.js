@@ -5,6 +5,7 @@ const { scrapeGroup, MAX_LIMIT } = require("../scrapers/vkGroup");
 const { scrapeComments } = require("../scrapers/vkComments");
 const { isVkUrl } = require("../utils/vk");
 const { withRetry } = require("../utils/retry");
+const { isScrapeError } = require("../utils/scrapeError");
 const logger = require("../utils/logger");
 
 /**
@@ -70,15 +71,10 @@ router.post("/group", async (req, res) => {
 
         return res.json({ success: true, data });
     } catch (e) {
-        logger.error("POST /scrape/group failed", {
+        return sendScrapeError(res, e, {
+            route: "POST /scrape/group",
             url,
-            error: e.message,
-            ms: Date.now() - started,
-        });
-
-        return res.status(statusForError(e)).json({
-            success: false,
-            error: e.message || "scrape failed",
+            started,
         });
     }
 });
@@ -106,15 +102,10 @@ router.post("/comments", async (req, res) => {
 
         return res.json({ success: true, data });
     } catch (e) {
-        logger.error("POST /scrape/comments failed", {
+        return sendScrapeError(res, e, {
+            route: "POST /scrape/comments",
             url,
-            error: e.message,
-            ms: Date.now() - started,
-        });
-
-        return res.status(statusForError(e)).json({
-            success: false,
-            error: e.message || "scrape failed",
+            started,
         });
     }
 });
@@ -132,6 +123,20 @@ function validateUrl(url) {
 }
 
 function statusForError(error) {
+    if (isScrapeError(error)) {
+        if (
+            error.code === "VK_CAPTCHA" ||
+            error.code === "VK_LOGIN" ||
+            error.code === "VK_BLOCKED"
+        ) {
+            // 423 Locked — clear machine-readable block (not a random 500)
+            return 423;
+        }
+        if (error.code === "EMPTY_WALL") {
+            return 404;
+        }
+    }
+
     const message = String(error?.message || "").toLowerCase();
 
     if (message.includes("timeout")) {
@@ -143,6 +148,34 @@ function statusForError(error) {
     }
 
     return 500;
+}
+
+/**
+ * Structured error response + log for operators.
+ * @param {import('express').Response} res
+ * @param {Error} e
+ * @param {{ route: string, url: string, started: number }} ctx
+ */
+function sendScrapeError(res, e, ctx) {
+    const code = isScrapeError(e) ? e.code : "PARSE_ERROR";
+    const diagnostics = isScrapeError(e) ? e.diagnostics : null;
+    const ms = Date.now() - ctx.started;
+
+    logger.error(`${ctx.route} failed`, {
+        url: ctx.url,
+        code,
+        error: e.message,
+        retryable: isScrapeError(e) ? e.retryable : true,
+        diagnostics,
+        ms,
+    });
+
+    return res.status(statusForError(e)).json({
+        success: false,
+        error: e.message || "scrape failed",
+        code,
+        diagnostics,
+    });
 }
 
 module.exports = router;

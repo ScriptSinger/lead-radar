@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Exceptions\ParserUnavailableException;
+use App\Exceptions\VkScrapeException;
 use App\Models\VkGroup;
 use App\Services\Telegram\TelegramNotifier;
 use App\Services\Vk\GroupScanner;
@@ -82,12 +83,30 @@ class ScanVkGroupJob implements ShouldQueue
             );
         }
 
-        $stats = $scanner->scan(
-            $group,
-            max(1, min(30, $this->limit)),
-            $this->withComments,
-            $this->trigger,
-        );
+        try {
+            $stats = $scanner->scan(
+                $group,
+                max(1, min(30, $this->limit)),
+                $this->withComments,
+                $this->trigger,
+            );
+        } catch (VkScrapeException $e) {
+            // Captcha/login/block: do not thrash retries — long release once, then fail
+            Log::error('vk.scan.job.scrape_blocked', [
+                'group_id' => $this->groupId,
+                'attempt' => $this->attempts(),
+                ...$e->context(),
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($e->isBlocking() && $this->attempts() < $this->tries) {
+                $this->release(180);
+
+                return;
+            }
+
+            throw $e;
+        }
 
         Log::info('vk.scan.job.done', [
             'group_id' => $this->groupId,
@@ -101,10 +120,16 @@ class ScanVkGroupJob implements ShouldQueue
 
     public function failed(?Throwable $e): void
     {
-        Log::error('vk.scan.job.failed', [
+        $ctx = [
             'group_id' => $this->groupId,
             'error' => $e?->getMessage(),
-        ]);
+        ];
+
+        if ($e instanceof VkScrapeException) {
+            $ctx = array_merge($ctx, $e->context());
+        }
+
+        Log::error('vk.scan.job.failed', $ctx);
 
         $this->alertTelegram($e);
     }
@@ -126,6 +151,9 @@ class ScanVkGroupJob implements ShouldQueue
             $group = VkGroup::query()->find($this->groupId);
             $name = $group?->name ?? ('#'.$this->groupId);
             $msg = $e?->getMessage() ?? 'unknown error';
+            if ($e instanceof VkScrapeException) {
+                $msg = "[{$e->errorCode}] {$msg}";
+            }
 
             $notifier->sendMessage(implode("\n", [
                 '🚨 <b>VK scan job failed</b>',

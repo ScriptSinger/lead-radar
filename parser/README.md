@@ -30,7 +30,9 @@ GET /health
 All scrape endpoints return:
 
 - **success** `200`: `{ "success": true, "data": [...] }`
-- **error** `4xx/5xx`: `{ "success": false, "error": "message" }`
+- **error** `4xx/5xx`: `{ "success": false, "error": "message", "code"?: "VK_CAPTCHA"|"VK_LOGIN"|"VK_BLOCKED"|"EMPTY_WALL"|"PARSE_ERROR", "diagnostics"?: object }`
+  - Captcha / login / block → **HTTP 423** + structured `diagnostics` (verdict, confidence, signals, page snippet)
+  - Logs: JSON line `vk.page_probe` on every scrape navigation
 
 ### `POST /scrape/group`
 

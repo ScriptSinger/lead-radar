@@ -1,6 +1,11 @@
 const { withPage, goto } = require("../browser/playwright");
 const { normalizePost } = require("../utils/vk");
 const logger = require("../utils/logger");
+const { ScrapeError } = require("../utils/scrapeError");
+const {
+    probePage,
+    codeForVerdict,
+} = require("../utils/vkPageProbe");
 
 const DEFAULT_LIMIT = 6;
 const MAX_LIMIT = 30;
@@ -32,7 +37,7 @@ async function scrapeGroup({ url, limit = DEFAULT_LIMIT }) {
 
             // Prefer modern wall markup; fall back after a short extra wait
             const hasPosts = await page
-                .locator('[data-testid="post"], .post, ._post')
+                .locator('[data-testid="post"], .post, ._post, .wall_item')
                 .first()
                 .waitFor({ state: "attached", timeout: 8000 })
                 .then(() => true)
@@ -41,6 +46,35 @@ async function scrapeGroup({ url, limit = DEFAULT_LIMIT }) {
             if (!hasPosts) {
                 // One more settle for slow SPA
                 await page.waitForTimeout(2000);
+            }
+
+            // Multi-signal captcha / login / block probe (structured logs)
+            const probe = await probePage(page, {
+                expect: "wall",
+                context: { op: "scrapeGroup", url },
+            });
+
+            if (probe.isBlocking) {
+                const code = codeForVerdict(probe.verdict);
+                throw new ScrapeError(
+                    `VK ${probe.verdict} (confidence=${probe.confidence}): ${probe.page.title || probe.page.url}`,
+                    {
+                        code,
+                        diagnostics: {
+                            verdict: probe.verdict,
+                            confidence: probe.confidence,
+                            scores: probe.scores,
+                            signals: probe.signals,
+                            page: {
+                                url: probe.page.url,
+                                title: probe.page.title,
+                                body_snippet: probe.page.bodyText.slice(0, 200),
+                                counts: probe.page.counts,
+                            },
+                        },
+                        retryable: false,
+                    },
+                );
             }
 
             const posts = await page.evaluate((max) => {
@@ -152,14 +186,21 @@ async function scrapeGroup({ url, limit = DEFAULT_LIMIT }) {
     );
 
     if (!rawPosts.length) {
-        logger.warn("scrapeGroup empty result", { url });
+        logger.warn("scrapeGroup empty_dom_posts", {
+            url,
+            hint: "DOM had no extractable posts; probe was non-blocking (possible empty wall or soft block)",
+        });
     }
 
     const data = rawPosts
         .map((p) => normalizePost(p))
         .filter((p) => p.vk_post_id);
 
-    logger.info("scrapeGroup done", { url, count: data.length });
+    logger.info("scrapeGroup done", {
+        url,
+        count: data.length,
+        raw_count: rawPosts.length,
+    });
 
     return data;
 }

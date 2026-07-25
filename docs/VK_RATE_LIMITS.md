@@ -17,25 +17,52 @@ Lead Radar scrapes **public** VK pages via a Playwright microservice (not the of
 
 **Rule of thumb:** treat the pipeline as **serial-ish**, not a parallel crawl farm. Prefer more groups with longer delays over high concurrency.
 
+## Captcha detection & logging
+
+Parser runs a **multi-signal page probe** after each navigation (`vk.page_probe` JSON log).
+
+| Verdict | Code | Meaning |
+|---------|------|---------|
+| `captcha` | `VK_CAPTCHA` | Bot challenge (`challenge.html`, «не робот», captcha DOM) |
+| `login` | `VK_LOGIN` | Login wall / password form without wall content |
+| `blocked` | `VK_BLOCKED` | Access denied / rate-limit page |
+| `empty_wall` | `EMPTY_WALL` | No posts, no strong captcha signals |
+| `ok` | — | Wall content present |
+
+Each probe log includes:
+
+- `verdict`, `confidence` (0–100), `scores`, `signals[]` (`id`, `weight`, `bucket`, `detail`)
+- `page.url`, `page.title`, `page.body_snippet`, `page.counts`
+
+**API error shape** (HTTP **423** for captcha/login/block):
+
+```json
+{
+  "success": false,
+  "error": "VK captcha (confidence=90): …",
+  "code": "VK_CAPTCHA",
+  "diagnostics": { "verdict": "captcha", "confidence": 90, "signals": [], "page": {} }
+}
+```
+
+**Laravel logs:**
+
+| Event | When |
+|-------|------|
+| `vk.page_probe` | Parser (stdout JSON) |
+| `vk.parser.request_failed` | ParserClient got non-success |
+| `vk.scan.scrape_blocked` | GroupScanner / ScanRun `status=captcha` |
+| `vk.scan.job.scrape_blocked` | Job (long release 180s, no thrash retries) |
+| `vk.scan.empty_posts` | `[]` without blocking verdict |
+
+Captcha is **not** retried immediately by the parser (`retryable: false`). Job waits ~180s once, then fails permanently → Telegram (if enabled).
+
 ## Captcha and blocks (strategy)
 
-1. **Detect**  
-   - Parser returns HTTP 4xx/5xx or `{ success: false, error: "..." }` → `ParserClient` throws; scan run ends as `failed` / job retries.  
-   - Empty post lists can be legitimate (empty wall) or a soft block — check logs and the group in a real browser.
-
-2. **Backoff**  
-   - Job-level exponential backoff already applies.  
-   - If captcha/blocks persist: increase `VK_SCAN_GROUP_DELAY_SECONDS` (e.g. 90–180), lower `VK_SCAN_LIMIT`, disable comments temporarily (`VK_SCAN_WITH_COMMENTS=false`).
-
-3. **Do not**  
-   - Run many parallel Chromium scrapes against VK.  
-   - Bypass captchas with third-party solvers in production without legal review.  
-   - Hammer the same group every minute.
-
-4. **Recovery**  
-   - Pause the group (`active = false`) in admin.  
-   - Restart parser container if Chromium is wedged.  
-   - Inspect **Scan Runs** and failed queue jobs; Telegram alerts fire on permanent job failure (if notify enabled).
+1. **Detect** — see table above; do not treat silent `data:[]` as success without reading `vk.page_probe`.  
+2. **Backoff** — raise `group_delay_seconds` (90–180), lower limit, disable comments, pause schedule.  
+3. **Do not** — parallel Chromium farm, captcha solvers without legal review, 1‑minute hammering.  
+4. **Recovery** — `active=false` on group, restart parser, inspect Scan Runs with status `captcha`.
 
 ## Legal / product notes
 

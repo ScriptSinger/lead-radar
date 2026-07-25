@@ -44,6 +44,16 @@ async function withRetry(fn, options = {}) {
 }
 
 function isRetryable(error) {
+    // Captcha / login / block: never burn more attempts
+    if (
+        error?.retryable === false ||
+        error?.code === "VK_CAPTCHA" ||
+        error?.code === "VK_LOGIN" ||
+        error?.code === "VK_BLOCKED"
+    ) {
+        return false;
+    }
+
     const message = String(error?.message || error || "").toLowerCase();
     const name = String(error?.name || "").toLowerCase();
 

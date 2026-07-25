@@ -79,7 +79,7 @@ class ParserClientTest extends TestCase
             ], 200),
         ]);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(\App\Exceptions\VkScrapeException::class);
         $this->expectExceptionMessage('captcha');
 
         app(ParserClient::class)->scrapeComments('https://vk.com/wall-1_1');
@@ -91,8 +91,8 @@ class ParserClientTest extends TestCase
             'http://parser.test/scrape/group' => Http::response(['error' => 'busy'], 429),
         ]);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('HTTP 429');
+        $this->expectException(\App\Exceptions\VkScrapeException::class);
+        $this->expectExceptionMessage('busy');
 
         app(ParserClient::class)->scrapeGroup('https://vk.com/x');
     }

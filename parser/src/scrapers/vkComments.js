@@ -1,6 +1,11 @@
 const { withPage, goto } = require("../browser/playwright");
 const { normalizeComment } = require("../utils/vk");
 const logger = require("../utils/logger");
+const { ScrapeError } = require("../utils/scrapeError");
+const {
+    probePage,
+    codeForVerdict,
+} = require("../utils/vkPageProbe");
 
 /** Max expand-click rounds per post (show more / show replies). */
 const MAX_EXPAND_ROUNDS = Number(process.env.PARSER_COMMENT_EXPAND_ROUNDS || 8);
@@ -39,6 +44,45 @@ async function scrapeComments({ url }) {
     const rawComments = await withPage(
         async (page, { waitMs }) => {
             await goto(page, mobileUrl, { waitMs: Math.max(waitMs, 4000) });
+
+            const probe = await probePage(page, {
+                expect: "comments",
+                context: { op: "scrapeComments", url: mobileUrl },
+            });
+
+            // Only hard blocks stop comment scrape. empty_wall / no replies yet is OK
+            // (comments may appear after expand rounds).
+            if (probe.isBlocking && probe.confidence >= 50) {
+                const code = codeForVerdict(probe.verdict);
+                throw new ScrapeError(
+                    `VK ${probe.verdict} (confidence=${probe.confidence}): ${probe.page.title || probe.page.url}`,
+                    {
+                        code,
+                        diagnostics: {
+                            verdict: probe.verdict,
+                            confidence: probe.confidence,
+                            scores: probe.scores,
+                            signals: probe.signals,
+                            page: {
+                                url: probe.page.url,
+                                title: probe.page.title,
+                                body_snippet: probe.page.bodyText.slice(0, 200),
+                                counts: probe.page.counts,
+                            },
+                        },
+                        retryable: false,
+                    },
+                );
+            }
+
+            if (probe.verdict === "empty_wall" || probe.verdict === "unknown") {
+                logger.info("scrapeComments probe_soft", {
+                    url: mobileUrl,
+                    verdict: probe.verdict,
+                    confidence: probe.confidence,
+                    hint: "continue expand/harvest — empty replies is normal",
+                });
+            }
 
             // Collect comments from main page + paginated offset URLs
             const all = [];
