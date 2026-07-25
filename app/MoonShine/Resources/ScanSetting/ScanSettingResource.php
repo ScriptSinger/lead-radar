@@ -101,6 +101,7 @@ class ScanSettingResource extends ModelResource
             Switcher::make('Comments', 'with_comments'),
             Select::make('Window', 'post_window')->options($this->windowOptions()),
             Date::make('Last dispatch', 'last_dispatched_at')->format('Y-m-d H:i')->sortable(),
+            Date::make('Paused until', 'paused_until')->format('Y-m-d H:i')->sortable(),
         ];
     }
 
@@ -137,6 +138,16 @@ class ScanSettingResource extends ModelResource
                     ->withTime()
                     ->format('Y-m-d H:i:s')
                     ->hint('Set by scheduler / Run scan now. Clear or set in the past to allow the next auto tick sooner.'),
+                Date::make('Paused until (captcha)', 'paused_until')
+                    ->withTime()
+                    ->format('Y-m-d H:i:s')
+                    ->nullable()
+                    ->hint(
+                        'Auto-set after repeated VK_CAPTCHA (default 3 fails → pause 60 min). '
+                        .'Clear this field (and pause reason) to resume auto schedule early. '
+                        .'Manual «Run scan now» still works while paused.'
+                    ),
+                Textarea::make('Pause reason', 'pause_reason')->nullable(),
             ]),
 
             Box::make('Rate limit & volume', [
@@ -179,6 +190,8 @@ class ScanSettingResource extends ModelResource
             Switcher::make('With comments', 'with_comments'),
             Select::make('Post window', 'post_window')->options($this->windowOptions()),
             Date::make('Last dispatched', 'last_dispatched_at')->format('Y-m-d H:i:s'),
+            Date::make('Paused until', 'paused_until')->format('Y-m-d H:i:s'),
+            Textarea::make('Pause reason', 'pause_reason'),
             Textarea::make('Notes', 'notes'),
             Date::make('Updated', 'updated_at')->format('Y-m-d H:i:s'),
         ];

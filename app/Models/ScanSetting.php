@@ -28,6 +28,8 @@ class ScanSetting extends Model
         'with_comments',
         'post_window',
         'last_dispatched_at',
+        'paused_until',
+        'pause_reason',
         'notes',
     ];
 
@@ -40,6 +42,7 @@ class ScanSetting extends Model
             'group_delay_seconds' => 'integer',
             'scan_limit' => 'integer',
             'last_dispatched_at' => 'datetime',
+            'paused_until' => 'datetime',
         ];
     }
 
@@ -134,6 +137,20 @@ class ScanSetting extends Model
     }
 
     /**
+     * Auto captcha circuit-breaker is active (schedule tick must not fan-out).
+     */
+    public function isCaptchaPaused(?\DateTimeInterface $now = null): bool
+    {
+        if ($this->paused_until === null) {
+            return false;
+        }
+
+        $now = $now ? \Carbon\Carbon::parse($now) : now();
+
+        return $this->paused_until->greaterThan($now);
+    }
+
+    /**
      * Whether the schedule tick should dispatch a new fan-out now.
      */
     public function isDue(?\DateTimeInterface $now = null): bool
@@ -143,6 +160,10 @@ class ScanSetting extends Model
         }
 
         $now = $now ? \Carbon\Carbon::parse($now) : now();
+
+        if ($this->isCaptchaPaused($now)) {
+            return false;
+        }
 
         if ($this->last_dispatched_at === null) {
             return true;
@@ -184,6 +205,8 @@ class ScanSetting extends Model
             'with_comments' => $this->with_comments,
             'post_window' => $this->normalizedPostWindow(),
             'last_dispatched_at' => $this->last_dispatched_at?->toIso8601String(),
+            'paused_until' => $this->paused_until?->toIso8601String(),
+            'pause_reason' => $this->pause_reason,
         ], $extra));
     }
 }

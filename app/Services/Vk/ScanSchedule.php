@@ -23,6 +23,21 @@ class ScanSchedule
             return;
         }
 
+        // Expire pause automatically when paused_until is in the past
+        if ($settings->paused_until !== null && ! $settings->isCaptchaPaused()) {
+            app(CaptchaPauseGuard::class)->clearPause('expired');
+            $settings = ScanSetting::current();
+        }
+
+        if ($settings->isCaptchaPaused()) {
+            Log::debug('vk.schedule.tick_captcha_paused', [
+                'paused_until' => $settings->paused_until?->toIso8601String(),
+                'pause_reason' => $settings->pause_reason,
+            ]);
+
+            return;
+        }
+
         if (! $settings->isDue()) {
             Log::debug('vk.schedule.tick_not_due', [
                 'interval_minutes' => $settings->normalizedIntervalMinutes(),

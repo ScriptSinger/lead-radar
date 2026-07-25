@@ -4,8 +4,10 @@ namespace App\Jobs;
 
 use App\Exceptions\ParserUnavailableException;
 use App\Exceptions\VkScrapeException;
+use App\Models\ScanSetting;
 use App\Models\VkGroup;
 use App\Services\Telegram\TelegramNotifier;
+use App\Services\Vk\CaptchaPauseGuard;
 use App\Services\Vk\GroupScanner;
 use App\Services\Vk\ParserClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -65,6 +67,19 @@ class ScanVkGroupJob implements ShouldQueue
             return;
         }
 
+        // Drop remaining *scheduled* jobs while captcha pause is active (manual still runs)
+        if (
+            $this->trigger === 'schedule'
+            && ScanSetting::current()->isCaptchaPaused()
+        ) {
+            Log::info('vk.scan.job.skipped_captcha_pause', [
+                'group_id' => $this->groupId,
+                'paused_until' => ScanSetting::current()->paused_until?->toIso8601String(),
+            ]);
+
+            return;
+        }
+
         // Pre-check without creating a failed run if parser is flapping
         if (! $parser->health()) {
             Log::warning('vk.scan.job.parser_down_precheck', [
@@ -108,6 +123,8 @@ class ScanVkGroupJob implements ShouldQueue
             throw $e;
         }
 
+        app(CaptchaPauseGuard::class)->recordSuccess();
+
         Log::info('vk.scan.job.done', [
             'group_id' => $this->groupId,
             'scan_run_id' => $stats['scan_run_id'] ?? null,
@@ -127,6 +144,15 @@ class ScanVkGroupJob implements ShouldQueue
 
         if ($e instanceof VkScrapeException) {
             $ctx = array_merge($ctx, $e->context());
+            if ($e->isBlocking()) {
+                $pause = app(CaptchaPauseGuard::class)->recordBlockingFailure(
+                    $e->errorCode,
+                    $this->groupId,
+                );
+                $ctx['captcha_streak'] = $pause['streak'];
+                $ctx['schedule_paused'] = $pause['paused'];
+                $ctx['paused_until'] = $pause['paused_until'];
+            }
         }
 
         Log::error('vk.scan.job.failed', $ctx);

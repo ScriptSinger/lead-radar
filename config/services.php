@@ -73,6 +73,9 @@ return [
         'scan_group_delay_seconds' => (int) env('VK_SCAN_GROUP_DELAY_SECONDS', 50),
         'scan_schedule' => env('VK_SCAN_SCHEDULE', 'db'), // db = scan_settings.interval_minutes
         'post_window' => env('VK_SCAN_POST_WINDOW', 'since_last_scan'),
+        // After N consecutive VK_CAPTCHA/LOGIN/BLOCKED job failures → pause auto schedule
+        'captcha_pause_threshold' => (int) env('VK_CAPTCHA_PAUSE_THRESHOLD', 3),
+        'captcha_pause_minutes' => (int) env('VK_CAPTCHA_PAUSE_MINUTES', 60),
     ],
 
 ];

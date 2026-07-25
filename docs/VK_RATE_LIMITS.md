@@ -57,6 +57,25 @@ Each probe log includes:
 
 Captcha is **not** retried immediately by the parser (`retryable: false`). Job waits ~180s once, then fails permanently → Telegram (if enabled).
 
+### Auto-pause schedule (circuit breaker)
+
+After **N consecutive** permanent blocking failures (`VK_CAPTCHA` / `VK_LOGIN` / `VK_BLOCKED`):
+
+1. `scan_settings.paused_until` = now + **M minutes**
+2. Scheduler tick skips fan-out (`vk.schedule.tick_captcha_paused`)
+3. Already-queued **schedule** jobs exit early
+4. Telegram once: *VK scans auto-paused*
+5. Successful scan resets the failure streak
+6. When `paused_until` passes, pause fields are cleared on next tick
+
+| Env | Default | Meaning |
+|-----|---------|---------|
+| `VK_CAPTCHA_PAUSE_THRESHOLD` | `3` | Failures in a row before pause |
+| `VK_CAPTCHA_PAUSE_MINUTES` | `60` | Pause length |
+
+Manual **Run scan now** / `vk:dispatch-scans` still works during pause.  
+Clear pause early: MoonShine → Scan Settings → empty **Paused until**.
+
 ## Captcha and blocks (strategy)
 
 1. **Detect** — see table above; do not treat silent `data:[]` as success without reading `vk.page_probe`.  
