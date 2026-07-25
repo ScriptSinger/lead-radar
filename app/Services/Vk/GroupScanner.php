@@ -124,7 +124,7 @@ class GroupScanner
 
             /** @var list<VkPost> $savedPosts */
             $savedPosts = [];
-            /** @var list<VkPost> $windowPosts posts for comments + lead match */
+            /** @var list<VkPost> $windowPosts fresh posts (body match by date window) */
             $windowPosts = [];
 
             foreach ($rawPosts as $raw) {
@@ -155,8 +155,10 @@ class GroupScanner
                 }
             }
 
+            // Comments: ALL posts from this scrape (top-N wall), not only in-window.
+            // Old posts often stay on the wall while new replies with keywords appear.
             if ($withComments) {
-                foreach ($windowPosts as $post) {
+                foreach ($savedPosts as $post) {
                     if (! $post->url) {
                         continue;
                     }
@@ -186,18 +188,37 @@ class GroupScanner
             }
 
             try {
-                // Match only posts inside the time window from this scrape.
-                // Full rematch of historical content: php artisan vk:match-leads
-                $postsToMatch = collect($windowPosts)
-                    ->unique('id')
-                    ->values()
-                    ->each(static function (VkPost $post): void {
-                        $post->loadMissing('comments');
-                    });
+                // Post body: only in-window (avoid re-flagging old post text every scan).
+                // Comments: every post we just scraped (including outside window).
+                $created = 0;
+                $updated = 0;
 
-                $leadStats = $this->leadMatcher->matchPosts($postsToMatch, withComments: true);
-                $stats['leads_created'] += $leadStats['created'];
-                $stats['leads_updated'] += $leadStats['updated'];
+                foreach (collect($windowPosts)->unique('id') as $post) {
+                    $r = $this->leadMatcher->matchPost($post);
+                    $created += $r['created'];
+                    $updated += $r['updated'];
+                }
+
+                if ($withComments) {
+                    foreach (collect($savedPosts)->unique('id') as $post) {
+                        $post->loadMissing('comments');
+                        foreach ($post->comments as $comment) {
+                            $cr = $this->leadMatcher->matchComment($comment);
+                            $created += $cr['created'];
+                            $updated += $cr['updated'];
+                        }
+                    }
+                }
+
+                $stats['leads_created'] += $created;
+                $stats['leads_updated'] += $updated;
+
+                Log::info('vk.leads.matched', [
+                    'created' => $created,
+                    'updated' => $updated,
+                    'posts_body_checked' => count($windowPosts),
+                    'posts_comments_checked' => $withComments ? count($savedPosts) : 0,
+                ]);
             } catch (Throwable $e) {
                 $stats['errors'][] = "lead match group {$group->id}: {$e->getMessage()}";
                 Log::warning('vk.scan.lead_match_failed', [

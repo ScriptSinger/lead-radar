@@ -8,12 +8,15 @@ use Carbon\Carbon;
 use Carbon\CarbonInterface;
 
 /**
- * Time window for which scraped posts get comments + lead matching.
+ * Time window for **post body** keyword matching (and stats: posts_in_window).
  *
- * Modes (config services.vk.post_window):
+ * Comments are scraped + matched for **all** posts returned by the wall scrape
+ * (top-N), including older posts — new replies can appear under old threads.
+ *
+ * Modes (config services.vk.post_window / Scan Settings):
  * - today            — calendar day in app timezone
  * - since_last_scan  — posted_at >= last_scan_at; first scan falls back to today
- * - all              — no date filter (every post returned by parser limit)
+ * - all              — no date filter (every post from parser limit)
  */
 class PostWindow
 {

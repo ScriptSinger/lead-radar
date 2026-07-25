@@ -143,11 +143,9 @@ php artisan db:seed --class=ScanSettingSeeder
 - Один lead на пару keyword × post или keyword × comment.
 - `dedupe_key`: `p:{postId}:k:{keywordId}` / `c:{commentId}:k:{keywordId}` (unique).
 - Повторный match **не сбрасывает** `status` (processed/ignored сохраняются).
-- При скане comments + match только для постов в **окне** (`VK_SCAN_POST_WINDOW`):
-  - `since_last_scan` (default) — с прошлого `last_scan_at`, первый скан = **сегодня**;
-  - `today` — календарный день;
-  - `all` — все N постов с парсера.
-- Парсер по-прежнему отдаёт top-N стены; «весь день» = достаточный `VK_SCAN_LIMIT` + окно.
+- Окно (`post_window`) режет только **текст поста** для keyword match:
+  - `since_last_scan` / `today` / `all` — как раньше.
+- **Комментарии** качаются и матчятся для **всех** top-N постов с стены (старый пост + новые replies с ключевиком → lead).
 
 ---
 

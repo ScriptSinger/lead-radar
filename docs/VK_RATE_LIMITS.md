@@ -70,17 +70,24 @@ Captcha is **not** retried immediately by the parser (`retryable: false`). Job w
 - Prefer commercial keywords and active groups you care about — less noise, less traffic.
 - Store only fields you need (text, urls, ids); do not scrape private content or personal data beyond public posts/comments.
 
-## Post time window (comments + lead match)
+## Post time window vs comments
 
-Parser always returns the **top N** wall posts (`VK_SCAN_LIMIT`). After upsert, only posts inside the window get **comments scrape** and **keyword match**:
+Parser returns the **top N** wall posts (`scan_limit`).
 
-| `VK_SCAN_POST_WINDOW` | Meaning |
-|-----------------------|---------|
-| `since_last_scan` (default) | `posted_at >= last_scan_at`; first scan uses **start of today** |
+| | Post body keywords | Comments scrape + comment keywords |
+|--|--------------------|-------------------------------------|
+| **in window** (`since_last_scan` / `today` / `all`) | yes | yes |
+| **outside window** (old post still in top-N) | no | **yes** (new replies under old posts) |
+
+Window modes for **post body** only:
+
+| `post_window` | Meaning |
+|---------------|---------|
+| `since_last_scan` (default) | `posted_at >= last_scan_at`; first scan → start of today |
 | `today` | calendar day in app timezone |
-| `all` | no date filter (every post in the N-slice) |
+| `all` | match post body for every post in the N-slice |
 
-**Important:** this does **not** download “all posts for the day” from VK. If a group publishes more than N posts between scans, raise `VK_SCAN_LIMIT` (e.g. 10–15) or scan more often. Full historical rematch: `php artisan vk:match-leads`.
+If a group posts more than N items between scans, raise `scan_limit` or scan more often. Full rematch: `php artisan vk:match-leads`.
 
 For **50 groups every ~5 hours**, prefer:
 

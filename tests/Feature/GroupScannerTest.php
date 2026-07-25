@@ -162,12 +162,58 @@ class GroupScannerTest extends TestCase
         $this->assertSame(2, $stats['posts_created']);
         $this->assertSame(1, $stats['posts_in_window']);
         $this->assertSame(1, $stats['posts_outside_window']);
-        // only today's post got comments
+        // comments on ALL fetched posts (old wall posts may get new replies)
+        $this->assertSame(2, $stats['comments_fetched']);
+        $this->assertDatabaseCount('vk_comments', 2);
+        // old post body not matched (outside window); comment keyword → leads on both posts
+        $this->assertSame(2, $stats['leads_created']);
+        $this->assertSame(2, Lead::query()->where('source_type', 'comment')->count());
+        $this->assertSame(0, Lead::query()->where('source_type', 'post')->count());
+    }
+
+    public function test_outside_window_post_still_matches_new_comment_keywords(): void
+    {
+        config(['services.vk.post_window' => PostWindow::MODE_TODAY]);
+        Keyword::query()->create(['word' => 'сантехник', 'type' => 'comment']);
+
+        Http::fake([
+            'http://parser.test/health' => Http::response(['status' => 'ok'], 200),
+            'http://parser.test/scrape/group' => Http::response([
+                'success' => true,
+                'data' => [[
+                    'vk_post_id' => '-5_old',
+                    'text' => 'Старый пост без ключа в тексте',
+                    'url' => 'https://vk.com/wall-5_old',
+                    'posted_at' => '2026-07-20T12:00:00+00:00',
+                    'author_id' => 1,
+                ]],
+            ], 200),
+            'http://parser.test/scrape/comments' => Http::response([
+                'success' => true,
+                'data' => [[
+                    'vk_comment_id' => '77',
+                    'parent_comment_id' => null,
+                    'text' => 'Нужен сантехник сегодня',
+                    'url' => 'https://vk.com/wall-5_old?reply=77',
+                    'posted_at' => now()->toIso8601String(),
+                    'author_id' => 3,
+                ]],
+            ], 200),
+        ]);
+
+        $stats = app(GroupScanner::class)->scan(
+            $this->group,
+            withComments: true,
+            trigger: 'test',
+            postWindow: PostWindow::MODE_TODAY,
+        );
+
+        $this->assertSame(0, $stats['posts_in_window']);
+        $this->assertSame(1, $stats['posts_outside_window']);
         $this->assertSame(1, $stats['comments_fetched']);
-        $this->assertDatabaseCount('vk_comments', 1);
-        // old post had keyword but outside window → no post-lead; comment lead only
         $this->assertSame(1, $stats['leads_created']);
         $this->assertSame('comment', Lead::query()->value('source_type'));
+        $this->assertStringContainsString('сантехник', (string) Lead::query()->value('text'));
     }
 
     public function test_since_last_scan_window_uses_last_scan_at(): void

@@ -158,7 +158,11 @@ class ScanSettingResource extends ModelResource
                 Select::make('Post window', 'post_window')
                     ->options($this->windowOptions())
                     ->required()
-                    ->hint('Which scraped posts get comments + keyword match.'),
+                    ->hint(
+                        'Date filter for matching the **post body** only. '
+                        .'Comments are always scraped+matched for all top-N wall posts '
+                        .'(old posts can have new replies with keywords).'
+                    ),
                 Textarea::make('Notes', 'notes')->nullable(),
             ]),
         ];
