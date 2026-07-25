@@ -6,11 +6,11 @@ namespace App\MoonShine\Resources\VkPost;
 
 use App\Models\VkPost;
 use App\MoonShine\Resources\Lead\LeadResource;
-use App\MoonShine\Resources\VkComment\VkCommentResource;
 use App\MoonShine\Resources\VkGroup\VkGroupResource;
 use App\MoonShine\Resources\VkPost\Pages\VkPostDetailPage;
 use App\MoonShine\Resources\VkPost\Pages\VkPostFormPage;
 use App\MoonShine\Resources\VkPost\Pages\VkPostIndexPage;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Contracts\Core\PageContract;
 use MoonShine\Laravel\Fields\Relationships\BelongsTo;
 use MoonShine\Laravel\Fields\Relationships\HasMany;
@@ -34,6 +34,17 @@ class VkPostResource extends ModelResource
     /** Label in BelongsTo / filters (accessor on VkPost) */
     protected string $column = 'display_name';
 
+    /** Avoid N+1 on index/detail BelongsTo */
+    protected array $with = ['group'];
+
+    /**
+     * Aggregate for index column `comments_count` (see indexFields).
+     */
+    protected function modifyQueryBuilder(Builder $builder): Builder
+    {
+        return $builder->withCount('comments');
+    }
+
     protected function indexFields(): iterable
     {
         return [
@@ -43,6 +54,7 @@ class VkPostResource extends ModelResource
                 ->sortable(),
             Text::make('VK post id', 'vk_post_id')->sortable(),
             Text::make('Text', 'text'),
+            Number::make('Comments', 'comments_count')->sortable(),
             Url::make('Url', 'url'),
             Number::make('Author id', 'author_id'),
             Date::make('Posted at', 'posted_at')->format('Y-m-d H:i')->sortable(),
@@ -73,8 +85,7 @@ class VkPostResource extends ModelResource
             Url::make('Url', 'url'),
             Number::make('Author id', 'author_id'),
             Date::make('Posted at', 'posted_at')->format('Y-m-d H:i:s'),
-            // relation method on model is comments(), not VkComments()
-            HasMany::make('Comments', 'comments', resource: VkCommentResource::class),
+            // Comments: nested tree on VkPostDetailPage (PostCommentsTree), not flat HasMany
             HasMany::make('Leads', 'leads', resource: LeadResource::class),
         ];
     }

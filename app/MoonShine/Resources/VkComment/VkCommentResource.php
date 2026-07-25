@@ -28,6 +28,10 @@ use MoonShine\UI\Fields\Url;
 /**
  * Nested VK comments as MoonShine tree (plugin lee-to/moonshine-tree-resource).
  *
+ * Not listed in the admin menu — comments are viewed under VK Post detail
+ * (PostCommentsTree) and linked from Leads. Resource stays registered for
+ * BelongsTo / tree title helpers.
+ *
  * Hierarchy: parent_id (local FK). Sort column used only for display order —
  * drag&drop is disabled because structure comes from VK.
  *
