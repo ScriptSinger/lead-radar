@@ -14,6 +14,7 @@ class KeywordSeeder extends Seeder
     public function run(): void
     {
         $keep = [
+            ['word' => 'холодильщик', 'type' => 'both'],
             ['word' => 'холодильник', 'type' => 'both'],
             ['word' => 'холодильника', 'type' => 'both'],
             ['word' => 'стиралка', 'type' => 'both'],

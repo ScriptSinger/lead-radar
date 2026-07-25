@@ -94,9 +94,34 @@ class VkComment extends Model
         return $query->where('thread_root_id', $threadRootId);
     }
 
+    /**
+     * Sits at top of tree UI (parent_id null). Includes true roots and orphans.
+     */
     public function isRoot(): bool
     {
         return $this->parent_id === null || (int) $this->depth === 0;
+    }
+
+    /**
+     * Real top-level comment: parser did not report a parent.
+     */
+    public function isTrueRoot(): bool
+    {
+        return $this->parent_vk_comment_id === null && $this->parent_id === null;
+    }
+
+    /**
+     * Reply whose parent_vk_comment_id is set but parent row is missing in DB
+     * (incomplete scrape). Still parent_id=null so the tree can show it as a top node.
+     */
+    public function isOrphan(): bool
+    {
+        return $this->parent_vk_comment_id !== null && $this->parent_id === null;
+    }
+
+    public function isNested(): bool
+    {
+        return $this->parent_id !== null && (int) $this->depth > 0;
     }
 
     /**

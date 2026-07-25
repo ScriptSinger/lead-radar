@@ -35,6 +35,7 @@ class GroupScanner
      *     comments_updated: int,
      *     comments_roots: int,
      *     comments_nested: int,
+     *     comments_orphans?: int,
      *     leads_created: int,
      *     leads_updated: int,
      *     posts_in_window: int,
@@ -72,6 +73,7 @@ class GroupScanner
             'comments_updated' => 0,
             'comments_roots' => 0,
             'comments_nested' => 0,
+            'comments_orphans' => 0,
             'leads_created' => 0,
             'leads_updated' => 0,
             'posts_in_window' => 0,
@@ -163,6 +165,7 @@ class GroupScanner
                         $stats['comments_updated'] += $commentStats['updated'];
                         $stats['comments_roots'] += $commentStats['roots'];
                         $stats['comments_nested'] += $commentStats['nested'];
+                        $stats['comments_orphans'] += $commentStats['orphans'] ?? 0;
                         foreach ($commentStats['errors'] as $err) {
                             $stats['errors'][] = $err;
                         }
@@ -319,6 +322,7 @@ class GroupScanner
             'updated' => 0,
             'roots' => 0,
             'nested' => 0,
+            'orphans' => 0,
             'errors' => [],
         ];
 
@@ -341,6 +345,7 @@ class GroupScanner
         $tree = $this->treeResolver->resolveForPost($post);
         $result['roots'] = $tree['roots'];
         $result['nested'] = $tree['nested'];
+        $result['orphans'] = $tree['orphans'];
 
         return $result;
     }

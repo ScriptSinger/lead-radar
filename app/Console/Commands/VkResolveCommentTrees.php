@@ -32,27 +32,31 @@ class VkResolveCommentTrees extends Command
 
         $totalRoots = 0;
         $totalNested = 0;
+        $totalOrphans = 0;
 
         foreach ($posts as $post) {
             $stats = $resolver->resolveForPost($post);
             $totalRoots += $stats['roots'];
             $totalNested += $stats['nested'];
+            $totalOrphans += $stats['orphans'];
 
             $this->line(sprintf(
-                'post #%d (%s): resolved=%d roots=%d nested=%d',
+                'post #%d (%s): resolved=%d roots=%d nested=%d orphans=%d',
                 $post->id,
                 $post->vk_post_id,
                 $stats['resolved'],
                 $stats['roots'],
                 $stats['nested'],
+                $stats['orphans'],
             ));
         }
 
         $this->info(sprintf(
-            'Done. posts=%d roots=%d nested=%d',
+            'Done. posts=%d roots=%d nested=%d orphans=%d',
             $posts->count(),
             $totalRoots,
             $totalNested,
+            $totalOrphans,
         ));
 
         return self::SUCCESS;

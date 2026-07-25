@@ -103,7 +103,11 @@ class VkCommentResource extends TreeResource
     public function treeItemBadgeText(Model $item): string
     {
         /** @var VkComment $item */
-        if ((int) $item->depth === 0) {
+        if ($item->isOrphan()) {
+            return 'orphan · '.$item->vk_comment_id;
+        }
+
+        if ($item->isTrueRoot() || (int) $item->depth === 0) {
             return 'root · '.$item->vk_comment_id;
         }
 
@@ -113,13 +117,23 @@ class VkCommentResource extends TreeResource
     public function treeItemBadgeColor(Model $item): Color
     {
         /** @var VkComment $item */
-        return (int) $item->depth === 0 ? Color::GREEN : Color::BLUE;
+        if ($item->isOrphan()) {
+            return Color::WARNING;
+        }
+
+        return $item->isTrueRoot() || (int) $item->depth === 0
+            ? Color::GREEN
+            : Color::BLUE;
     }
 
     public function treeItemDescription(Model $item): string
     {
         /** @var VkComment $item */
         $parts = [];
+
+        if ($item->isOrphan()) {
+            $parts[] = 'parent vk #'.e((string) $item->parent_vk_comment_id).' missing';
+        }
 
         if ($item->post) {
             $parts[] = e($item->post->display_name);

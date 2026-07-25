@@ -11,13 +11,17 @@ use Illuminate\Support\Facades\Log;
  * Resolve local adjacency-list links after flat comment upsert.
  *
  * Maps parent_vk_comment_id → parent_id / thread_root_id / depth.
+ *
+ * When parent_vk is set but the parent row is not in DB yet (incomplete scrape),
+ * the comment stays at top of the tree (parent_id null, depth 0) so it remains
+ * visible — but it is counted as an orphan, not a true root.
  */
 class CommentTreeResolver
 {
     /**
      * Resolve tree for all comments of a post.
      *
-     * @return array{resolved: int, roots: int, nested: int}
+     * @return array{resolved: int, roots: int, nested: int, orphans: int}
      */
     public function resolveForPost(VkPost $post): array
     {
@@ -27,7 +31,7 @@ class CommentTreeResolver
             ->get();
 
         if ($comments->isEmpty()) {
-            return ['resolved' => 0, 'roots' => 0, 'nested' => 0];
+            return ['resolved' => 0, 'roots' => 0, 'nested' => 0, 'orphans' => 0];
         }
 
         /** @var array<int, VkComment> $byVkId */
@@ -38,12 +42,15 @@ class CommentTreeResolver
 
         $roots = 0;
         $nested = 0;
+        $orphans = 0;
+        /** @var list<int> $orphanParentVks */
+        $orphanParentVks = [];
 
         foreach ($comments as $comment) {
             $parentVk = $comment->parent_vk_comment_id;
 
-            if ($parentVk === null || ! isset($byVkId[(int) $parentVk])) {
-                // Root: parent missing or not in DB yet
+            // True root: no parent claimed by parser
+            if ($parentVk === null) {
                 $comment->forceFill([
                     'parent_id' => null,
                     'thread_root_id' => $comment->id,
@@ -54,7 +61,35 @@ class CommentTreeResolver
                 continue;
             }
 
-            $parent = $byVkId[(int) $parentVk];
+            $parentVkInt = (int) $parentVk;
+
+            // Self-parent → treat as true root (corrupt payload)
+            if ($parentVkInt === (int) $comment->vk_comment_id) {
+                $comment->forceFill([
+                    'parent_vk_comment_id' => null,
+                    'parent_id' => null,
+                    'thread_root_id' => $comment->id,
+                    'depth' => 0,
+                ])->save();
+                $roots++;
+
+                continue;
+            }
+
+            // Orphan: parent claimed but not in this post's comments
+            if (! isset($byVkId[$parentVkInt])) {
+                $comment->forceFill([
+                    'parent_id' => null,
+                    'thread_root_id' => $comment->id,
+                    'depth' => 0,
+                ])->save();
+                $orphans++;
+                $orphanParentVks[] = $parentVkInt;
+
+                continue;
+            }
+
+            $parent = $byVkId[$parentVkInt];
             $threadRoot = $this->findRoot($parent, $byVkId);
             $depth = $this->depthFromParent($parent, $byVkId);
 
@@ -66,21 +101,20 @@ class CommentTreeResolver
             $nested++;
         }
 
-        // Second pass: ensure thread_root_id of roots points to self
-        // (already set). Replies that pointed at unresolved parents as roots
-        // were handled when parent missing → treated as root.
-
         Log::debug('vk.comment_tree.resolved', [
             'post_id' => $post->id,
             'resolved' => $comments->count(),
             'roots' => $roots,
             'nested' => $nested,
+            'orphans' => $orphans,
+            'orphan_missing_parent_vks' => array_values(array_unique($orphanParentVks)),
         ]);
 
         return [
             'resolved' => $comments->count(),
             'roots' => $roots,
             'nested' => $nested,
+            'orphans' => $orphans,
         ];
     }
 
