@@ -254,8 +254,12 @@ class GroupScanner
                 'post_window' => $windowMode,
                 'posts_created' => $stats['posts_created'],
                 'posts_updated' => $stats['posts_updated'],
+                // fetched = from parser; created = new DB rows; updated = already existed
                 'comments_fetched' => $stats['comments_fetched'],
+                'comments_created' => $stats['comments_created'],
+                'comments_updated' => $stats['comments_updated'],
                 'leads_created' => $stats['leads_created'],
+                'leads_updated' => $stats['leads_updated'],
                 'error_count' => count($stats['errors']),
             ]);
 

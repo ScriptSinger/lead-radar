@@ -19,11 +19,40 @@ Default port: `3000`.
 
 ```http
 GET /health
+GET /auth/status
 ```
 
 ```json
-{ "status": "ok", "service": "parser", "ts": "..." }
+{
+  "status": "ok",
+  "service": "parser",
+  "auth": {
+    "session_loaded": true,
+    "cookie_count": 12,
+    "login_env_set": true
+  }
+}
 ```
+
+## VK login (optional, for comments)
+
+Anonymous m.vk often shows *«Войдите в аккаунт…»* promo and may hide replies.  
+Logged-in **Playwright storageState** improves comment visibility.
+
+```bash
+# in project .env
+VK_LOGIN=phone_or_email
+VK_PASSWORD=secret
+
+docker compose up -d parser
+docker compose exec parser node src/auth/login.js
+# → parser/data/vk-storage-state.json
+
+curl -s http://localhost:3000/health | jq .auth
+```
+
+Re-login when session dies or captcha blocks scrapes.  
+**Do not commit** `vk-storage-state.json`. Using a personal account may violate VK ToS.
 
 ## API contract
 

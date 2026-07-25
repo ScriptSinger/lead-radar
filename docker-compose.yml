@@ -125,10 +125,19 @@ services:
     image: mcr.microsoft.com/playwright:v1.61.0-jammy
     user: "${UID}:${GID}"
     working_dir: /app
+    env_file:
+      - .env
+    environment:
+      # VK session for logged-in scrapes (see parser/src/auth/login.js)
+      VK_LOGIN: "${VK_LOGIN:-}"
+      VK_PASSWORD: "${VK_PASSWORD:-}"
+      VK_SESSION_PATH: "${VK_SESSION_PATH:-/app/data/vk-storage-state.json}"
     ports:
     - "3000:3000"
     volumes:
     - ./parser:/app
+    # Persist session file even if data/ is wiped carefully
+    - ./parser/data:/app/data
 
     networks:
     - laravel

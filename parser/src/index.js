@@ -1,6 +1,7 @@
 const express = require("express");
 const scrapeRoutes = require("./routes/scrape");
 const { closeBrowser } = require("./browser/playwright");
+const { sessionStatus } = require("./auth/session");
 const logger = require("./utils/logger");
 
 const app = express();
@@ -9,11 +10,23 @@ const PORT = Number(process.env.PORT || 3000);
 app.use(express.json({ limit: "100kb" }));
 
 app.get("/health", (req, res) => {
+    const auth = sessionStatus();
     res.json({
         status: "ok",
         service: "parser",
         ts: new Date().toISOString(),
+        auth: {
+            session_loaded: auth.enabled,
+            session_path: auth.path,
+            session_mtime: auth.mtime,
+            cookie_count: auth.cookie_count,
+            login_env_set: auth.login_env_set,
+        },
     });
+});
+
+app.get("/auth/status", (req, res) => {
+    res.json({ success: true, auth: sessionStatus() });
 });
 
 app.use("/scrape", scrapeRoutes);

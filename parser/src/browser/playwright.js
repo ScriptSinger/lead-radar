@@ -1,6 +1,11 @@
 const { chromium } = require("playwright");
 const logger = require("../utils/logger");
 const { sleep } = require("../utils/retry");
+const {
+    loadStorageState,
+    hasSessionFile,
+    sessionStatus,
+} = require("../auth/session");
 
 /** Realistic desktop Chrome UA to reduce headless blocks. */
 const USER_AGENT =
@@ -13,6 +18,7 @@ const MIN_GAP_MS = Number(process.env.PARSER_REQUEST_GAP_MS || 1500);
 
 /** @type {import('playwright').Browser|null} */
 let browser = null;
+let loggedSessionOnce = false;
 
 /** Serialize scrapes + enforce gap between navigations. */
 let chain = Promise.resolve();
@@ -26,7 +32,10 @@ async function getBrowser() {
         return browser;
     }
 
-    logger.info("launching browser");
+    logger.info("launching browser", {
+        vk_session: hasSessionFile(),
+        auth: sessionStatus(),
+    });
 
     browser = await chromium.launch({
         headless: true,
@@ -46,11 +55,41 @@ async function getBrowser() {
 }
 
 /**
- * Run work inside a fresh browser context (isolated cookies/storage).
+ * Build a new context, optionally with VK storageState (logged-in cookies).
+ * @param {import('playwright').Browser} b
+ */
+async function newScrapeContext(b) {
+    /** @type {import('playwright').BrowserContextOptions} */
+    const opts = {
+        userAgent: USER_AGENT,
+        locale: "ru-RU",
+        viewport: { width: 1365, height: 900 },
+        extraHTTPHeaders: {
+            "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+        },
+    };
+
+    const state = loadStorageState();
+    if (state) {
+        opts.storageState = state;
+        if (!loggedSessionOnce) {
+            logger.info("vk.auth.session_loaded", {
+                cookies: state.cookies?.length ?? 0,
+                path: sessionStatus().path,
+            });
+            loggedSessionOnce = true;
+        }
+    }
+
+    return b.newContext(opts);
+}
+
+/**
+ * Run work inside a browser context (with VK session when available).
  * Always closes the context; keeps the browser process alive.
  *
  * @template T
- * @param {(page: import('playwright').Page) => Promise<T>} fn
+ * @param {(page: import('playwright').Page, meta: { waitMs: number }) => Promise<T>} fn
  * @param {{ waitMs?: number, label?: string }} [options]
  * @returns {Promise<T>}
  */
@@ -65,14 +104,7 @@ function withPage(fn, options = {}) {
         }
 
         const b = await getBrowser();
-        const context = await b.newContext({
-            userAgent: USER_AGENT,
-            locale: "ru-RU",
-            viewport: { width: 1365, height: 900 },
-            extraHTTPHeaders: {
-                "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
-            },
-        });
+        const context = await newScrapeContext(b);
 
         const page = await context.newPage();
         page.setDefaultTimeout(NAV_TIMEOUT_MS);
@@ -146,6 +178,7 @@ module.exports = {
     withPage,
     goto,
     closeBrowser,
+    newScrapeContext,
     USER_AGENT,
     NAV_TIMEOUT_MS,
 };

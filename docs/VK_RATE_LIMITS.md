@@ -64,9 +64,24 @@ Captcha is **not** retried immediately by the parser (`retryable: false`). Job w
 3. **Do not** — parallel Chromium farm, captcha solvers without legal review, 1‑minute hammering.  
 4. **Recovery** — `active=false` on group, restart parser, inspect Scan Runs with status `captcha`.
 
+## Logged-in session (optional)
+
+Parser can reuse a Playwright **storageState** (cookies) after:
+
+```bash
+# .env: VK_LOGIN=… VK_PASSWORD=…
+docker compose exec parser node src/auth/login.js
+curl -s localhost:3000/health | jq .auth
+```
+
+Helps when m.vk hides comments for anonymous sessions.  
+Session file: `parser/data/vk-storage-state.json` (gitignored).  
+Re-auth when probes show login walls or empty replies after a working wall scrape.
+
 ## Legal / product notes
 
 - Scraping public pages may still violate VK ToS; use for **internal lead research** at your own risk.
+- Logging in with a real account increases ToS / ban risk — use a dedicated throwaway if possible.
 - Prefer commercial keywords and active groups you care about — less noise, less traffic.
 - Store only fields you need (text, urls, ids); do not scrape private content or personal data beyond public posts/comments.
 
