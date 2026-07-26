@@ -23,6 +23,8 @@ return new class extends Migration
             // since_last_scan | today | all
             $table->string('post_window', 32)->default('since_last_scan');
             $table->timestamp('last_dispatched_at')->nullable();
+            $table->timestamp('paused_until')->nullable();
+            $table->string('pause_reason', 255)->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
         });

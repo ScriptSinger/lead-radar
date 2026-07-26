@@ -42,7 +42,7 @@ class TelegramNotifier
     /**
      * @throws TelegramSDKException
      */
-    public function sendMessage(string $text, ?string $chatId = null, string $parseMode = 'HTML'): void
+    public function sendMessage(string $text, ?string $chatId = null, string $parseMode = 'HTML', $replyMarkup = null): void
     {
         $chatId ??= (string) config('services.telegram.chat_id');
 
@@ -52,12 +52,110 @@ class TelegramNotifier
             return;
         }
 
-        $this->telegram->sendMessage([
+        $params = [
             'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => $parseMode,
             'disable_web_page_preview' => false,
+        ];
+
+        if ($replyMarkup !== null) {
+            $params['reply_markup'] = is_array($replyMarkup) ? json_encode($replyMarkup) : $replyMarkup;
+        }
+
+        $this->telegram->sendMessage($params);
+    }
+
+    /**
+     * @throws TelegramSDKException
+     */
+    public function editMessage(string $text, string $chatId, string $messageId, string $parseMode = 'HTML', $replyMarkup = null): void
+    {
+        if (! filled(config('services.telegram.bot_token'))) {
+            return;
+        }
+
+        $params = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text' => $text,
+            'parse_mode' => $parseMode,
+        ];
+
+        if ($replyMarkup !== null) {
+            $params['reply_markup'] = is_array($replyMarkup) ? json_encode($replyMarkup) : $replyMarkup;
+        }
+
+        $this->telegram->editMessageText($params);
+    }
+
+    /**
+     * @throws TelegramSDKException
+     */
+    public function answerCallbackQuery(string $callbackQueryId, ?string $text = null, bool $showAlert = false): void
+    {
+        if (! filled(config('services.telegram.bot_token'))) {
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery([
+            'callback_query_id' => $callbackQueryId,
+            'text' => $text,
+            'show_alert' => $showAlert,
         ]);
+    }
+
+    public function formatParserStatus(): array
+    {
+        $settings = \App\Models\ScanSetting::current();
+        $enabled = $settings->schedule_enabled;
+        $status = $enabled ? '🟢 <b>Running</b>' : '🔴 <b>Stopped</b>';
+
+        if ($enabled && $settings->isCaptchaPaused()) {
+            $status = '🟠 <b>Paused (Captcha)</b>';
+        }
+
+        $tz = config('app.timezone', 'UTC');
+        
+        $lastScanStr = 'never';
+        if ($settings->last_dispatched_at) {
+            $lastTime = $settings->last_dispatched_at->timezone($tz);
+            $diff = $lastTime->locale('ru')->diffForHumans();
+            $lastScanStr = $lastTime->format('H:i:s') . ' (' . $diff . ')';
+        }
+
+        $intervalStr = $settings->normalizedIntervalMinutes() . ' min';
+        
+        $text = implode("\n", [
+            '🤖 <b>Parser Control</b>',
+            "Status: {$status}",
+            '',
+            "Interval: {$intervalStr}",
+            "Last scan: <code>{$lastScanStr}</code>",
+        ]);
+
+        if ($settings->isCaptchaPaused()) {
+            $pausedUntil = $settings->paused_until->timezone($tz);
+            $pausedDiff = $pausedUntil->locale('ru')->diffForHumans();
+            $text .= "\nPaused until: <code>" . $pausedUntil->format('H:i:s') . " ({$pausedDiff})</code>";
+            if ($settings->pause_reason) {
+                $text .= "\nReason: <code>" . e($settings->pause_reason) . "</code>";
+            }
+        }
+
+        $buttons = [];
+        if ($enabled) {
+            $buttons[] = [['text' => '⛔ Stop Parser', 'callback_data' => 'parser_stop']];
+        } else {
+            $buttons[] = [['text' => '🚀 Start Parser', 'callback_data' => 'parser_start']];
+        }
+
+        $buttons[] = [['text' => '🔄 Refresh', 'callback_data' => 'parser_refresh']];
+
+        return [
+            'text' => $text,
+            'markup' => ['inline_keyboard' => $buttons],
+        ];
     }
 
     public function notifyNewLead(Lead $lead): bool

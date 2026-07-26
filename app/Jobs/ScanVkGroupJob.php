@@ -106,7 +106,7 @@ class ScanVkGroupJob implements ShouldQueue
                 $this->trigger,
             );
         } catch (VkScrapeException $e) {
-            // Captcha/login/block: do not thrash retries — long release once, then fail
+            // Captcha/login/block: do not thrash retries — fail immediately so circuit breaker and Telegram alerts trigger instantly
             Log::error('vk.scan.job.scrape_blocked', [
                 'group_id' => $this->groupId,
                 'attempt' => $this->attempts(),
@@ -114,7 +114,11 @@ class ScanVkGroupJob implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            if ($e->isBlocking() && $this->attempts() < $this->tries) {
+            if ($e->isBlocking()) {
+                throw $e;
+            }
+
+            if ($this->attempts() < $this->tries) {
                 $this->release(180);
 
                 return;

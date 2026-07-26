@@ -27,9 +27,21 @@ const {
 
 const USER_AGENT =
     process.env.PARSER_USER_AGENT ||
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 
 const WAIT_MS = Number(process.env.VK_LOGIN_WAIT_MS || 15000);
+const STEP_WAIT_MS = Number(
+    process.env.VK_LOGIN_STEP_WAIT_MS ||
+        process.env.VK_LOGIN_2FA_WAIT_MS ||
+        20000,
+);
+const HEADLESS = !["0", "false", "no"].includes(
+    String(process.env.VK_LOGIN_HEADLESS || "true").toLowerCase(),
+);
+const CHROME_EXECUTABLE_PATH =
+    process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ||
+    process.env.CHROME_PATH ||
+    "";
 
 async function main() {
     const login = (process.env.VK_LOGIN || "").trim();
@@ -46,10 +58,14 @@ async function main() {
         login_hint: login.slice(0, 3) + "***",
         session_path: sessionPath(),
         wait_ms: WAIT_MS,
+        step_wait_ms: STEP_WAIT_MS,
+        headless: HEADLESS,
+        executable_path: CHROME_EXECUTABLE_PATH || undefined,
     });
 
     const browser = await chromium.launch({
-        headless: true,
+        headless: HEADLESS,
+        executablePath: CHROME_EXECUTABLE_PATH || undefined,
         args: [
             "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
@@ -60,7 +76,9 @@ async function main() {
     const context = await browser.newContext({
         userAgent: USER_AGENT,
         locale: "ru-RU",
-        viewport: { width: 1280, height: 900 },
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
         extraHTTPHeaders: {
             "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
         },
@@ -75,7 +93,6 @@ async function main() {
             waitUntil: "domcontentloaded",
             timeout: 45000,
         });
-        await page.waitForTimeout(2000);
 
         const filled = await fillLoginForm(page, login, password);
         if (!filled) {
@@ -85,9 +102,12 @@ async function main() {
                 waitUntil: "domcontentloaded",
                 timeout: 45000,
             });
-            await page.waitForTimeout(2000);
             const ok2 = await fillLoginForm(page, login, password);
             if (!ok2) {
+                const authBlock = await detectAuthBlock(page);
+                if (authBlock) {
+                    throw new Error(authBlock);
+                }
                 throw new Error(
                     "Could not find login form fields (email/pass). VK markup may have changed.",
                 );
@@ -163,60 +183,68 @@ async function fillLoginForm(page, login, password) {
     const emailSelectors = [
         'input[name="email"]',
         'input[name="login"]',
+        'input[name="phone"]',
+        'input[name="username"]',
         "#index_email",
+        "#login",
+        "#email",
+        'input[autocomplete="username"]',
+        'input[id*="login" i]',
+        'input[id*="email" i]',
+        'input[id*="phone" i]',
         'input[type="tel"]',
-        'input[type="text"]',
         'input[type="email"]',
+        'input[type="text"]',
     ];
     const passSelectors = [
         'input[name="pass"]',
         'input[name="password"]',
         "#index_pass",
+        "#password",
+        'input[autocomplete="current-password"]',
+        'input[id*="pass" i]',
         'input[type="password"]',
     ];
     const submitSelectors = [
         'button[type="submit"]',
         'input[type="submit"]',
         "#install_submit",
+        'button:has-text("Продолжить")',
+        '[role="button"]:has-text("Продолжить")',
         'button:has-text("Войти")',
+        '[role="button"]:has-text("Войти")',
+        'button:has-text("Log in")',
+        'button:has-text("Continue")',
         'input[value="Войти"]',
     ];
 
-    let emailEl = null;
-    for (const sel of emailSelectors) {
-        const loc = page.locator(sel).first();
-        if ((await loc.count().catch(() => 0)) > 0) {
-            try {
-                if (await loc.isVisible({ timeout: 800 })) {
-                    emailEl = loc;
-                    break;
-                }
-            } catch {
-                // next
-            }
-        }
-    }
-
-    let passEl = null;
-    for (const sel of passSelectors) {
-        const loc = page.locator(sel).first();
-        if ((await loc.count().catch(() => 0)) > 0) {
-            try {
-                if (await loc.isVisible({ timeout: 800 })) {
-                    passEl = loc;
-                    break;
-                }
-            } catch {
-                // next
-            }
-        }
-    }
+    const emailEl = await waitForVisibleLocator(page, emailSelectors, 20000);
+    let passEl = await findVisibleLocator(page, passSelectors);
 
     if (!emailEl || !passEl) {
+        if (emailEl && !passEl) {
+            await emailEl.fill(login);
+            await clickFirstVisible(page, submitSelectors, { fallback: emailEl });
+
+            passEl = await waitForVisibleLocator(page, passSelectors, STEP_WAIT_MS);
+            if (passEl) {
+                await passEl.fill(password);
+                await clickFirstVisible(page, submitSelectors, { fallback: passEl });
+                logger.info("vk.auth.form_submitted", { flow: "stepwise" });
+                return true;
+            }
+
+            const authBlock = await detectAuthBlock(page);
+            if (authBlock) {
+                throw new Error(authBlock);
+            }
+        }
+
         logger.warn("vk.auth.form_not_found", {
             url: page.url(),
             has_email: Boolean(emailEl),
             has_pass: Boolean(passEl),
+            frames: page.frames().map((frame) => frame.url()).slice(0, 8),
         });
         return false;
     }
@@ -224,28 +252,91 @@ async function fillLoginForm(page, login, password) {
     await emailEl.fill(login);
     await passEl.fill(password);
 
-    let clicked = false;
-    for (const sel of submitSelectors) {
-        const loc = page.locator(sel).first();
-        if ((await loc.count().catch(() => 0)) > 0) {
-            try {
-                if (await loc.isVisible({ timeout: 500 })) {
-                    await loc.click({ timeout: 3000 });
-                    clicked = true;
-                    break;
+    await clickFirstVisible(page, submitSelectors, { fallback: passEl });
+
+    logger.info("vk.auth.form_submitted", { flow: "single_page" });
+    return true;
+}
+
+async function detectAuthBlock(page) {
+    const frameUrls = page.frames().map((frame) => frame.url());
+    const joinedUrls = frameUrls.join("\n");
+    const text = (
+        await Promise.all(
+            page.frames().map((frame) =>
+                frame
+                    .locator("body")
+                    .innerText({ timeout: 1000 })
+                    .catch(() => ""),
+            ),
+        )
+    ).join("\n");
+
+    if (
+        /not_robot_captcha|challenge|captcha/i.test(joinedUrls) ||
+        /не робот|captcha|проверяем/i.test(text)
+    ) {
+        return "VK requires captcha/not-robot verification during login. Headless automated login cannot continue; retry from a machine with GUI using VK_LOGIN_HEADLESS=false and a larger VK_LOGIN_STEP_WAIT_MS, then complete the check manually.";
+    }
+
+    return null;
+}
+
+async function findVisibleLocator(page, selectors) {
+    for (const frame of page.frames()) {
+        for (const sel of selectors) {
+            const loc = frame.locator(sel).first();
+            if ((await loc.count().catch(() => 0)) > 0) {
+                try {
+                    if (await loc.isVisible({ timeout: 800 })) {
+                        return loc;
+                    }
+                } catch {
+                    // next
                 }
-            } catch {
-                // try next
             }
         }
     }
 
-    if (!clicked) {
-        await passEl.press("Enter");
+    return null;
+}
+
+async function waitForVisibleLocator(page, selectors, timeoutMs) {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+        const loc = await findVisibleLocator(page, selectors);
+        if (loc) {
+            return loc;
+        }
+        await page.waitForTimeout(500);
     }
 
-    logger.info("vk.auth.form_submitted");
-    return true;
+    return null;
+}
+
+async function clickFirstVisible(page, selectors, { fallback } = {}) {
+    for (const frame of page.frames()) {
+        for (const sel of selectors) {
+            const loc = frame.locator(sel).first();
+            if ((await loc.count().catch(() => 0)) > 0) {
+                try {
+                    if (await loc.isVisible({ timeout: 500 })) {
+                        await loc.click({ timeout: 3000 });
+                        return true;
+                    }
+                } catch {
+                    // try next
+                }
+            }
+        }
+    }
+
+    if (fallback) {
+        await fallback.press("Enter");
+        return true;
+    }
+
+    return false;
 }
 
 main();

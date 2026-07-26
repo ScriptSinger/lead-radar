@@ -18,6 +18,10 @@ class TelegramWebhookController extends Controller
             return response()->json(['ok' => false], 403);
         }
 
+        if ($request->has('callback_query')) {
+            return $this->handleCallbackQuery($request->input('callback_query'), $notifier);
+        }
+
         $message = $request->input('message') ?? $request->input('edited_message');
         $chatId = data_get($message, 'chat.id');
         $text = trim((string) data_get($message, 'text', ''));
@@ -41,6 +45,7 @@ class TelegramWebhookController extends Controller
                 'start', 'help' => $notifier->sendMessage($this->helpText(), $chatId),
                 'ping' => $notifier->sendMessage('pong', $chatId),
                 'stats' => $notifier->sendMessage($notifier->formatStats(), $chatId),
+                'parser' => $this->parser($notifier, $chatId),
                 'new' => $this->sendNewLeads($notifier, $chatId),
                 'mute' => $this->mute($notifier, $chatId),
                 'unmute' => $this->unmute($notifier, $chatId),
@@ -52,6 +57,39 @@ class TelegramWebhookController extends Controller
                 'error' => $e->getMessage(),
                 'chat_id' => $chatId,
                 'text' => $text,
+            ]);
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    private function handleCallbackQuery(array $callbackQuery, TelegramNotifier $notifier): JsonResponse
+    {
+        $data = (string) data_get($callbackQuery, 'data', '');
+        $chatId = (string) data_get($callbackQuery, 'message.chat.id', '');
+        $messageId = (string) data_get($callbackQuery, 'message.message_id', '');
+
+        if ($chatId === '' || ! $this->isAllowedChat($chatId)) {
+            return response()->json(['ok' => true]);
+        }
+
+        $settings = \App\Models\ScanSetting::current();
+
+        try {
+            if ($data === 'parser_start') {
+                $settings->update(['schedule_enabled' => true]);
+            } elseif ($data === 'parser_stop') {
+                $settings->update(['schedule_enabled' => false]);
+            }
+
+            $notifier->answerCallbackQuery($callbackQuery['id']);
+
+            $status = $notifier->formatParserStatus();
+            $notifier->editMessage($status['text'], $chatId, $messageId, 'HTML', $status['markup']);
+        } catch (Throwable $e) {
+            Log::error('telegram.webhook.callback_failed', [
+                'error' => $e->getMessage(),
+                'data' => $data,
             ]);
         }
 
@@ -112,6 +150,7 @@ class TelegramWebhookController extends Controller
             '🤖 <b>Lead Radar bot</b>',
             '',
             'Commands:',
+            '/parser — start/stop/status',
             '/stats — counters',
             '/new — last new leads',
             '/mute — stop lead notifications',
@@ -119,6 +158,12 @@ class TelegramWebhookController extends Controller
             '/chatid — show this chat id',
             'ping — pong',
         ]);
+    }
+
+    private function parser(TelegramNotifier $notifier, string $chatId): void
+    {
+        $status = $notifier->formatParserStatus();
+        $notifier->sendMessage($status['text'], $chatId, 'HTML', $status['markup']);
     }
 
     private function sendNewLeads(TelegramNotifier $notifier, string $chatId): void

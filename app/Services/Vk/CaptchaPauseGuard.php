@@ -157,14 +157,16 @@ class CaptchaPauseGuard
                 return;
             }
 
-            $untilLabel = \Carbon\Carbon::parse($until)
+            $untilCarbon = \Carbon\Carbon::parse($until)
                 ->timezone((string) config('app.timezone', 'UTC'))
-                ->format('Y-m-d H:i');
+                ->locale('ru');
+
+            $untilLabel = $untilCarbon->format('H:i:s') . ' (' . $untilCarbon->diffForHumans() . ')';
 
             $notifier->sendMessage(implode("\n", [
                 '⏸ <b>VK scans auto-paused</b>',
                 "Reason: <code>{$code}</code> × {$streak}",
-                "Until: <b>{$untilLabel}</b> (app timezone)",
+                "Until: <b>{$untilLabel}</b>",
                 'Auto schedule is off until then. Manual «Run scan now» still works.',
                 'Tip: raise group delay, turn comments off, wait, then clear pause in Scan Settings.',
             ]));
