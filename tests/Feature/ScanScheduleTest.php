@@ -29,11 +29,11 @@ class ScanScheduleTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_seeder_defaults_are_competitive(): void
+    public function test_seeder_defaults_keep_automatic_scans_disabled(): void
     {
         $s = ScanSetting::current();
 
-        $this->assertTrue($s->schedule_enabled);
+        $this->assertFalse($s->schedule_enabled);
         $this->assertSame(30, $s->interval_minutes);
         $this->assertSame(50, $s->group_delay_seconds);
         $this->assertSame(8, $s->scan_limit);

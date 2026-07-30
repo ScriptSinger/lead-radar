@@ -15,7 +15,7 @@ class ScanSettingSeeder extends Seeder
 
         if (! $row->exists) {
             $row->fill($defaults)->save();
-            $this->command?->info('Scan settings created with competitive defaults (every 30 min).');
+            $this->command?->info('Scan settings created; automatic schedule is OFF until enabled by an operator.');
 
             return;
         }

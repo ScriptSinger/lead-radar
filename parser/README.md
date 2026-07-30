@@ -36,6 +36,7 @@ GET /auth/status
   "service": "parser",
   "auth": {
     "session_loaded": true,
+    "authenticated": true,
     "cookie_count": 12,
     "login_env_set": true
   }

@@ -118,7 +118,7 @@ php artisan telegram:setup-webhook --info
 
 - **Scan Settings** (БД + MoonShine): interval, delay, limit, comments, post window, on/off.
 - **Scheduler** (`schedule:work`): каждую минуту tick → если `interval_minutes` прошёл — fan-out.
-- Дефолт сидера: **каждые 30 мин**, delay 50s, limit 8, comments on, window `since_last_scan`.
+- Дефолт сидера: расписание **выключено** до ручного включения после VK-логина; после включения — каждые 30 мин, delay 50s, limit 8, comments on, window `since_last_scan`.
 - **Worker**: timeout 300s; parser down → release/backoff; fail → Telegram (если включено).
 
 ```bash

@@ -38,6 +38,16 @@ function hasSessionFile() {
     }
 }
 
+/** A storageState file exists, but only this cookie proves a VK web session. */
+function hasAuthenticatedCookie(cookies) {
+    return Array.isArray(cookies) && cookies.some(
+        (cookie) =>
+            cookie.name === "remixsid" &&
+            typeof cookie.value === "string" &&
+            cookie.value.length > 20,
+    );
+}
+
 /**
  * @returns {object|null} storageState for browser.newContext({ storageState })
  */
@@ -51,6 +61,10 @@ function loadStorageState() {
         const json = JSON.parse(raw);
         if (!json || !Array.isArray(json.cookies)) {
             logger.warn("vk.auth.session_invalid", { path: file });
+            return null;
+        }
+        if (!hasAuthenticatedCookie(json.cookies)) {
+            logger.warn("vk.auth.session_not_authenticated", { path: file });
             return null;
         }
         return json;
@@ -86,17 +100,20 @@ function sessionStatus() {
     const exists = hasSessionFile();
     let mtime = null;
     let cookieCount = null;
+    let authenticated = false;
     if (exists) {
         try {
             mtime = fs.statSync(file).mtime.toISOString();
             const json = JSON.parse(fs.readFileSync(file, "utf8"));
             cookieCount = Array.isArray(json.cookies) ? json.cookies.length : 0;
+            authenticated = hasAuthenticatedCookie(json.cookies);
         } catch {
             // ignore
         }
     }
     return {
         enabled: exists,
+        authenticated,
         path: file,
         mtime,
         cookie_count: cookieCount,
@@ -149,4 +166,9 @@ module.exports = {
     saveStorageState,
     sessionStatus,
     pageLooksLoggedIn,
+    hasAuthenticatedCookie,
 };
+
+if (require.main === module) {
+    console.log(JSON.stringify(sessionStatus(), null, 2));
+}

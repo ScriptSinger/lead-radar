@@ -126,18 +126,21 @@ async function main() {
             await page.waitForTimeout(extraWait);
         }
 
+        // Verify on an authenticated-only destination. A login-page token or
+        // device cookie alone must never be saved as a usable session.
+        await page.goto("https://vk.com/feed", {
+            waitUntil: "domcontentloaded",
+            timeout: 45000,
+        });
+        await page.waitForTimeout(1500);
+
         const url = page.url();
         const title = await page.title();
         const loggedIn = await pageLooksLoggedIn(page);
 
         // Soft success: cookies often enough even if UI heuristic fails
         const cookies = await context.cookies();
-        const hasVkAuthCookie = cookies.some(
-            (c) =>
-                /remix|remixsid|p|vk_id|force_session/i.test(c.name) &&
-                c.value &&
-                c.value.length > 5,
-        );
+        const hasVkAuthCookie = require("./session").hasAuthenticatedCookie(cookies);
 
         logger.info("vk.auth.login_result", {
             url,

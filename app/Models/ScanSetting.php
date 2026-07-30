@@ -49,7 +49,8 @@ class ScanSetting extends Model
     /**
      * Defaults used by seeder and firstOrCreate.
      *
-     * Competitive lead-gen baseline: ~30 min waves, staggered groups.
+     * Conservative first-run baseline: configured but disabled until an
+     * operator confirms the VK session and enables the schedule.
      *
      * @return array<string, mixed>
      */
@@ -57,14 +58,14 @@ class ScanSetting extends Model
     {
         return [
             'name' => self::NAME_DEFAULT,
-            'schedule_enabled' => true,
+            'schedule_enabled' => false,
             'interval_minutes' => 30,
             'group_delay_seconds' => 50,
             'scan_limit' => 8,
             'with_comments' => true,
             'post_window' => PostWindow::MODE_SINCE_LAST_SCAN,
             'last_dispatched_at' => null,
-            'notes' => 'Default policy: scan every 30 minutes, 50s between groups, last 8 posts, comments on, match since last scan. Raise interval / delay when adding many groups to avoid VK blocks.',
+            'notes' => 'Automatic scanning is off by default. After VK login, enable it in MoonShine or Telegram. Policy: every 30 minutes, 50s between groups, last 8 posts, comments on, match since last scan. Raise interval / delay when adding many groups to avoid VK blocks.',
         ];
     }
 

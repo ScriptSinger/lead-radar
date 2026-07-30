@@ -44,6 +44,7 @@ app.get("/health", (req, res) => {
         ts: new Date().toISOString(),
         auth: {
             session_loaded: auth.enabled,
+            authenticated: auth.authenticated,
             session_path: auth.path,
             session_mtime: auth.mtime,
             cookie_count: auth.cookie_count,

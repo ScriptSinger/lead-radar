@@ -12,7 +12,8 @@ return new class extends Migration
             $table->id();
             // Singleton profile name (v1: always "default")
             $table->string('name', 64)->default('default')->unique();
-            $table->boolean('schedule_enabled')->default(true);
+            // Safety-first: operator enables automatic VK requests after login.
+            $table->boolean('schedule_enabled')->default(false);
             // How often the scheduler may start a new fan-out wave (minutes)
             $table->unsignedSmallInteger('interval_minutes')->default(30);
             // Stagger between ScanVkGroupJob dispatches (seconds)
