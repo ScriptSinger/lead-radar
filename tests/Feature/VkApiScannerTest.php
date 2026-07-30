@@ -42,8 +42,12 @@ class VkApiScannerTest extends TestCase
             ]),
             'https://api.vk.test/method/wall.getComments*' => Http::response([
                 'response' => ['items' => [[
-                    'id' => 10, 'from_id' => 2, 'text' => 'Тоже нужен сантехник',
+                    'id' => 10, 'from_id' => 2, 'text' => 'Обычный комментарий',
                     'date' => now()->timestamp,
+                    'thread' => ['count' => 1, 'items' => [[
+                        'id' => 11, 'from_id' => 3, 'text' => 'Тоже нужен сантехник',
+                        'date' => now()->timestamp,
+                    ]]],
                 ]]],
             ]),
         ]);
@@ -57,9 +61,12 @@ class VkApiScannerTest extends TestCase
         $stats = app(GroupScanner::class)->scan($group, withComments: true, trigger: 'test');
 
         $this->assertSame(1, $stats['posts_fetched']);
-        $this->assertSame(1, $stats['comments_fetched']);
+        $this->assertSame(2, $stats['comments_fetched']);
         $this->assertSame(2, $stats['leads_created']);
         $this->assertDatabaseHas('vk_posts', ['vk_post_id' => '-42_7']);
-        $this->assertDatabaseHas('vk_comments', ['vk_comment_id' => 10]);
+        $this->assertDatabaseHas('vk_comments', [
+            'vk_comment_id' => 11,
+            'parent_vk_comment_id' => 10,
+        ]);
     }
 }

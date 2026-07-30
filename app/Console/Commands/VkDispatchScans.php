@@ -2,9 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Contracts\VkContentSource;
 use App\Jobs\DispatchVkGroupScansJob;
 use App\Jobs\ScanVkGroupJob;
+use App\Models\ScanSetting;
 use App\Models\VkGroup;
+use App\Services\Vk\GroupScanner;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -15,7 +18,7 @@ class VkDispatchScans extends Command
 {
     public function handle(): int
     {
-        $settings = \App\Models\ScanSetting::current();
+        $settings = ScanSetting::current();
         $limitOpt = $this->option('limit');
         $limit = $limitOpt !== null && $limitOpt !== ''
             ? max(1, min(30, (int) $limitOpt))
@@ -72,7 +75,7 @@ class VkDispatchScans extends Command
             $this->info("Sync scan group #{$group->id} {$group->name}");
             // Run job handle inline without queue
             (new ScanVkGroupJob($group->id, $limit, $withComments, 'manual'))
-                ->handle(app(\App\Services\Vk\GroupScanner::class), app(\App\Services\Vk\ParserClient::class));
+                ->handle(app(GroupScanner::class), app(VkContentSource::class));
         }
 
         $this->info('Sync scans finished.');

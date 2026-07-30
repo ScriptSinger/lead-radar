@@ -6,8 +6,8 @@ use App\Exceptions\ParserUnavailableException;
 use App\Models\Keyword;
 use App\Models\Lead;
 use App\Models\ScanRun;
+use App\Models\ScanSetting;
 use App\Models\VkGroup;
-use App\Models\VkPost;
 use App\Services\Vk\GroupScanner;
 use App\Support\PostWindow;
 use Carbon\Carbon;
@@ -28,17 +28,18 @@ class GroupScannerTest extends TestCase
 
         Queue::fake();
         Carbon::setTestNow(Carbon::parse('2026-07-23 14:00:00'));
-        \App\Models\ScanSetting::forgetCache();
+        ScanSetting::forgetCache();
         config([
             'services.telegram.notify_enabled' => false,
+            'services.vk.content_source' => 'parser',
             'services.parser.url' => 'http://parser.test',
             'services.parser.timeout' => 5,
             'services.vk.post_window' => PostWindow::MODE_ALL,
         ]);
-        \App\Models\ScanSetting::current()->forceFill([
+        ScanSetting::current()->forceFill([
             'post_window' => PostWindow::MODE_ALL,
         ])->save();
-        \App\Models\ScanSetting::forgetCache();
+        ScanSetting::forgetCache();
 
         $this->group = VkGroup::query()->create([
             'name' => 'Scan Fixture',

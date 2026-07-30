@@ -61,10 +61,26 @@ class VkApiContentSource implements VkContentSource
                 }
                 $comments[] = $this->normalizeComment($comment, $post, null);
                 $thread = is_array($comment['thread'] ?? null) ? $comment['thread'] : [];
-                foreach (($thread['items'] ?? []) as $reply) {
+                $preview = is_array($thread['items'] ?? null) ? $thread['items'] : [];
+                foreach ($preview as $reply) {
                     if (is_array($reply)) {
-                        $comments[] = $this->normalizeComment($reply, $post, (int) $comment['id']);
+                        $comments[] = $this->normalizeComment(
+                            $reply,
+                            $post,
+                            $this->parentCommentId($reply, (int) $comment['id']),
+                        );
                     }
+                }
+
+                $threadCount = (int) ($thread['count'] ?? count($preview));
+                if ($threadCount > count($preview)) {
+                    $comments = [...$comments, ...$this->fetchThreadReplies(
+                        $ownerId,
+                        $postId,
+                        $post,
+                        (int) $comment['id'],
+                        $threadCount,
+                    )];
                 }
             }
 
@@ -73,7 +89,53 @@ class VkApiContentSource implements VkContentSource
             }
         }
 
-        return $comments;
+        return $this->uniqueNonEmptyComments($comments);
+    }
+
+    /**
+     * `thread.items` is only a preview. Load all remaining replies using the
+     * documented thread anchor, so nested keyword matching matches the former
+     * parser behaviour instead of silently stopping at the preview.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function fetchThreadReplies(
+        int $ownerId,
+        int $postId,
+        VkPost $post,
+        int $rootCommentId,
+        int $expectedCount,
+    ): array {
+        $replies = [];
+
+        for ($offset = 0; $offset < $expectedCount; $offset += 100) {
+            $page = $this->client->call('wall.getComments', [
+                'owner_id' => $ownerId,
+                'post_id' => $postId,
+                'start_comment_id' => $rootCommentId,
+                'count' => 100,
+                'offset' => $offset,
+                'sort' => 'asc',
+            ]);
+            $items = is_array($page['items'] ?? null) ? $page['items'] : [];
+
+            foreach ($items as $reply) {
+                if (! is_array($reply) || (int) ($reply['id'] ?? 0) === $rootCommentId) {
+                    continue;
+                }
+                $replies[] = $this->normalizeComment(
+                    $reply,
+                    $post,
+                    $this->parentCommentId($reply, $rootCommentId),
+                );
+            }
+
+            if (count($items) < 100) {
+                break;
+            }
+        }
+
+        return $replies;
     }
 
     private function ownerId(string $url): int
@@ -135,6 +197,43 @@ class VkApiContentSource implements VkContentSource
             'author_id' => $fromId,
             'author_type' => $fromId !== null && $fromId < 0 ? 'group' : 'user',
         ];
+    }
+
+    /** @param array<string, mixed> $comment */
+    private function parentCommentId(array $comment, int $fallback): int
+    {
+        $parents = $comment['parents_stack'] ?? null;
+        if (is_array($parents) && $parents !== []) {
+            $parent = end($parents);
+            if (is_numeric($parent) && (int) $parent > 0) {
+                return (int) $parent;
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $comments
+     * @return list<array<string, mixed>>
+     */
+    private function uniqueNonEmptyComments(array $comments): array
+    {
+        $unique = [];
+        foreach ($comments as $comment) {
+            $id = (int) ($comment['vk_comment_id'] ?? 0);
+            if ($id <= 0 || trim((string) ($comment['text'] ?? '')) === '') {
+                continue;
+            }
+
+            // A full-thread request may repeat an item from thread.items.
+            // Keep the version with a known parent relationship.
+            if (! isset($unique[$id]) || ($unique[$id]['parent_comment_id'] === null && $comment['parent_comment_id'] !== null)) {
+                $unique[$id] = $comment;
+            }
+        }
+
+        return array_values($unique);
     }
 
     /** @return array{0: int, 1: int} */
