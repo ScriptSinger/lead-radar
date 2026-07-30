@@ -70,6 +70,12 @@ return [
     |
     */
     'vk' => [
+        // parser (legacy Playwright source) or api (official VK API source)
+        'content_source' => env('VK_CONTENT_SOURCE', 'parser'),
+        // Direct VK API access. Keep the service token on the server only.
+        'api_token' => env('VK_API_TOKEN'),
+        'api_version' => env('VK_API_VERSION', '5.199'),
+        'api_url' => env('VK_API_URL', 'https://api.vk.com/method'),
         'scan_limit' => (int) env('VK_SCAN_LIMIT', 8),
         'scan_with_comments' => filter_var(env('VK_SCAN_WITH_COMMENTS', true), FILTER_VALIDATE_BOOL),
         'scan_group_delay_seconds' => (int) env('VK_SCAN_GROUP_DELAY_SECONDS', 50),

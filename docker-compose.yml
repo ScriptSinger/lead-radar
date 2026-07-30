@@ -72,13 +72,12 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      parser:
-        condition: service_healthy
     restart: unless-stopped
     init: true
     security_opt:
       - no-new-privileges:true
-    # Wait for DB, then process queues (vk.scan needs long Playwright timeout).
+    # Wait for DB, then process queues. The selected content source performs
+    # its own health check, so the worker is independent of the legacy parser.
     # IMPORTANT: keep queue:work args on ONE logical line — bare newlines inside
     # sh -c end the command early (worker would listen only to "default").
     # Note: do not use `db:show` here — it may fail without php-intl even when DB is up.

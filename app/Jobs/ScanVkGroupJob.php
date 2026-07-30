@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Contracts\VkContentSource;
 use App\Exceptions\ParserUnavailableException;
 use App\Exceptions\VkScrapeException;
 use App\Models\ScanSetting;
@@ -9,7 +10,6 @@ use App\Models\VkGroup;
 use App\Services\Telegram\TelegramNotifier;
 use App\Services\Vk\CaptchaPauseGuard;
 use App\Services\Vk\GroupScanner;
-use App\Services\Vk\ParserClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
@@ -68,7 +68,7 @@ class ScanVkGroupJob implements ShouldQueue
         ];
     }
 
-    public function handle(GroupScanner $scanner, ParserClient $parser): void
+    public function handle(GroupScanner $scanner, VkContentSource $contentSource): void
     {
         $group = VkGroup::query()->find($this->groupId);
 
@@ -98,8 +98,8 @@ class ScanVkGroupJob implements ShouldQueue
         }
 
         // Pre-check without creating a failed run if parser is flapping
-        if (! $parser->health()) {
-            Log::warning('vk.scan.job.parser_down_precheck', [
+        if (! $contentSource->health()) {
+            Log::warning('vk.scan.job.source_down_precheck', [
                 'group_id' => $this->groupId,
                 'attempt' => $this->attempts(),
             ]);
@@ -111,7 +111,7 @@ class ScanVkGroupJob implements ShouldQueue
             }
 
             throw new ParserUnavailableException(
-                'Parser unavailable after '.$this->attempts().' attempts'
+                'VK content source unavailable after '.$this->attempts().' attempts'
             );
         }
 

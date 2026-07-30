@@ -34,8 +34,9 @@
 
 | Компонент | Роль |
 |-----------|------|
-| `parser/` | Microservice: wall posts + nested comments (m.vk) |
-| `GroupScanner` | Health-check, upsert posts/comments, match leads, `scan_runs` |
+| `parser/` | Legacy microservice: wall posts + nested comments (m.vk) |
+| `app/Modules/VkApi/` | Official VK API source: communities, posts and comments |
+| `GroupScanner` | Source-agnostic health-check, upsert posts/comments, match leads, `scan_runs` |
 | `LeadMatcher` | Substring match (ё→е), `dedupe_key`, score +10 |
 | Jobs | `DispatchVkGroupScansJob` → `ScanVkGroupJob`; `NotifyNewLeadJob` |
 | MoonShine | Leads, Keywords, VK Groups/Posts/Comments, Scan Runs, Dashboard |
@@ -61,7 +62,8 @@ docker compose exec php php artisan migrate --seed
 
 Сервисы: `php`, `nginx` (:80), `mysql`, `redis`, `parser` (:3000), `worker`, `scheduler`, опционально `ngrok` (:4040).
 
-`worker-scan` ждёт healthy MySQL + parser и слушает только тяжёлую очередь `vk.scan`.
+`worker-scan` ждёт healthy MySQL и слушает только тяжёлую очередь `vk.scan`.
+Источник контента сам проверяет доступность перед началом скана.
 `worker-ops` слушает операционные очереди:
 
 `telegram.webhook`, `broadcast.telegram`, `default`.
@@ -78,6 +80,9 @@ docker compose exec php php artisan migrate --seed
 | `PARSER_URL` | URL parser, в Docker: `http://parser:3000` |
 | `PARSER_TIMEOUT` | Таймаут HTTP к parser (сек), default 180 |
 | `PARSER_SERVICE_TOKEN` | Обязательный в production bearer-токен между Laravel и parser |
+| `VK_CONTENT_SOURCE` | `parser` (устаревший сбор страниц) или `api` (официальный VK API) |
+| `VK_API_TOKEN` | Сервисный ключ VK, нужен при `VK_CONTENT_SOURCE=api`; только на сервере |
+| `VK_API_VERSION` | Версия VK API, по умолчанию `5.199` |
 | `VK_SCAN_*` | Только fallback; **боевые** параметры — MoonShine **Scan Settings** |
 | `VK_ADAPTIVE_GROUP_DELAY` | Автоматически повышает задержку следующей волны по среднему времени последних сканов |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Уведомления о лидах |
@@ -93,7 +98,7 @@ docker compose exec php php artisan migrate --seed
 ## Команды
 
 ```bash
-# Синхронный скан (нужен живой parser)
+# Синхронный скан (использует источник из VK_CONTENT_SOURCE)
 php artisan vk:scan
 php artisan vk:scan --group=1 --limit=6 --with-comments
 php artisan vk:scan --queue                    # через dispatch
@@ -111,6 +116,21 @@ php artisan telegram:setup-webhook --info
 ```
 
 Ручной скан из админки: **VK Groups → Scan now** (async job).
+
+### Официальный VK API
+
+Для легального сбора публичных данных создайте сервисный ключ в кабинете VK и
+установите в `.env`:
+
+```env
+VK_CONTENT_SOURCE=api
+VK_API_TOKEN=ваш_сервисный_ключ
+```
+
+Проверка ключа: `GET /api/vk/health`. После изменения `.env` перезапустите
+очередь/контейнеры, затем обычные команды `vk:scan` и задачи расписания будут
+использовать только модуль `app/Modules/VkApi/`; Playwright-парсер в этом режиме
+не вызывается.
 
 ---
 
@@ -187,7 +207,9 @@ app/
   Console/Commands/     vk:scan, vk:dispatch-scans, vk:match-leads, telegram:…
   Jobs/                 ScanVkGroupJob, DispatchVkGroupScansJob, NotifyNewLeadJob, RematchLeadsJob
   Models/               VkGroup, VkPost, VkComment, Keyword, Lead, ScanRun
-  Services/Vk/          ParserClient, GroupScanner, LeadMatcher, CommentTreeResolver
+  Contracts/            VkContentSource (общий контракт источника)
+  Modules/VkApi/        официальный VK API: client + content source
+  Services/Vk/          ParserClient, ParserContentSource, GroupScanner, LeadMatcher, CommentTreeResolver
   Services/Telegram/    TelegramNotifier
   Support/VkUrl.php
   MoonShine/            resources + Dashboard

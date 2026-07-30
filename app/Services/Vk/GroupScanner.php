@@ -2,6 +2,7 @@
 
 namespace App\Services\Vk;
 
+use App\Contracts\VkContentSource;
 use App\Exceptions\ParserUnavailableException;
 use App\Exceptions\VkScrapeException;
 use App\Models\ScanRun;
@@ -18,7 +19,7 @@ use Throwable;
 class GroupScanner
 {
     public function __construct(
-        private readonly ParserClient $parser,
+        private readonly VkContentSource $contentSource,
         private readonly CommentTreeResolver $treeResolver,
         private readonly LeadMatcher $leadMatcher,
     ) {}
@@ -110,15 +111,15 @@ class GroupScanner
             }
 
             $phaseStartedAt = microtime(true);
-            if (! $this->parser->health()) {
+            if (! $this->contentSource->health()) {
                 throw new ParserUnavailableException(
-                    'Parser is not healthy at '.config('services.parser.url')
+                    'VK content source is unavailable ('.config('services.vk.content_source', 'parser').')'
                 );
             }
             $stats['timings_ms']['health'] = $this->elapsedMs($phaseStartedAt);
 
             $phaseStartedAt = microtime(true);
-            $rawPosts = $this->parser->scrapeGroup($group->url, $limit);
+            $rawPosts = $this->contentSource->fetchGroup($group->url, $limit);
             $stats['timings_ms']['posts_fetch'] = $this->elapsedMs($phaseStartedAt);
             $stats['posts_fetched'] = count($rawPosts);
 
@@ -407,7 +408,7 @@ class GroupScanner
             'errors' => [],
         ];
 
-        $rawComments = $this->parser->scrapeComments($post->url);
+        $rawComments = $this->contentSource->fetchComments($post);
         $result['fetched'] = count($rawComments);
 
         foreach ($rawComments as $raw) {
