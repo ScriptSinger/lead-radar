@@ -62,7 +62,7 @@ class ParserClient
     public function health(): bool
     {
         try {
-            $response = Http::timeout(5)
+            $response = $this->http()->timeout(5)
                 ->get($this->url('/health'));
 
             return $response->successful()
@@ -79,7 +79,7 @@ class ParserClient
     private function request(string $path, array $payload): array
     {
         try {
-            $response = Http::timeout($this->timeout())
+            $response = $this->http()->timeout($this->timeout())
                 ->acceptJson()
                 ->asJson()
                 ->post($this->url($path), $payload);
@@ -201,5 +201,14 @@ class ParserClient
     {
         return $this->timeout
             ?? (int) config('services.parser.timeout', 60);
+    }
+
+    private function http(): \Illuminate\Http\Client\PendingRequest
+    {
+        $token = (string) config('services.parser.service_token', '');
+
+        return $token === ''
+            ? Http::baseUrl($this->baseUrl())
+            : Http::baseUrl($this->baseUrl())->withToken($token);
     }
 }

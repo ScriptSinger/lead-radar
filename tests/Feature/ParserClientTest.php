@@ -16,6 +16,7 @@ class ParserClientTest extends TestCase
         config([
             'services.parser.url' => 'http://parser.test',
             'services.parser.timeout' => 5,
+            'services.parser.service_token' => 'test-parser-token',
         ]);
     }
 
@@ -66,7 +67,8 @@ class ParserClientTest extends TestCase
         Http::assertSent(function ($request) {
             return $request->url() === 'http://parser.test/scrape/group'
                 && $request['url'] === 'https://vk.com/club1'
-                && $request['limit'] === 3;
+                && $request['limit'] === 3
+                && $request->hasHeader('Authorization', 'Bearer test-parser-token');
         });
     }
 

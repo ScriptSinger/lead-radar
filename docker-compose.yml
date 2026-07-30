@@ -72,7 +72,36 @@ services:
     networks:
       - laravel
 
-  worker:
+  worker-scan:
+    build:
+      context: .
+      dockerfile: docker/php/php.dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - laravel
+    depends_on:
+      mysql:
+        condition: service_healthy
+      parser:
+        condition: service_healthy
+    restart: unless-stopped
+    # Wait for DB, then process queues (vk.scan needs long Playwright timeout).
+    # IMPORTANT: keep queue:work args on ONE logical line — bare newlines inside
+    # sh -c end the command early (worker would listen only to "default").
+    # Note: do not use `db:show` here — it may fail without php-intl even when DB is up.
+    command:
+      - sh
+      - -c
+      - |
+        echo 'worker-scan: waiting for database...'
+        until php artisan migrate:status >/dev/null 2>&1; do sleep 2; done
+        echo 'worker-scan: starting queue:work'
+        exec php artisan queue:work "$${QUEUE_CONNECTION:-database}" --queue=vk.scan --tries=2 --timeout=300 --sleep=1 -vvv
+
+  worker-ops:
     build:
       context: .
       dockerfile: docker/php/php.dockerfile
@@ -86,18 +115,14 @@ services:
       mysql:
         condition: service_healthy
     restart: unless-stopped
-    # Wait for DB, then process queues (vk.scan needs long Playwright timeout).
-    # IMPORTANT: keep queue:work args on ONE logical line — bare newlines inside
-    # sh -c end the command early (worker would listen only to "default").
-    # Note: do not use `db:show` here — it may fail without php-intl even when DB is up.
     command:
       - sh
       - -c
       - |
-        echo 'worker: waiting for database...'
+        echo 'worker-ops: waiting for database...'
         until php artisan migrate:status >/dev/null 2>&1; do sleep 2; done
-        echo 'worker: starting queue:work'
-        exec php artisan queue:work "$${QUEUE_CONNECTION:-database}" --queue=vk.scan,telegram.webhook,broadcast.telegram,default --tries=2 --timeout=300 --sleep=1 -vvv
+        echo 'worker-ops: starting queue:work'
+        exec php artisan queue:work "$${QUEUE_CONNECTION:-database}" --queue=telegram.webhook,broadcast.telegram,default --tries=2 --timeout=60 --sleep=1 -vvv
 
   scheduler:
     build:
@@ -132,8 +157,7 @@ services:
       VK_LOGIN: "${VK_LOGIN:-}"
       VK_PASSWORD: "${VK_PASSWORD:-}"
       VK_SESSION_PATH: "${VK_SESSION_PATH:-/app/data/vk-storage-state.json}"
-    ports:
-    - "3000:3000"
+      PARSER_SERVICE_TOKEN: "${PARSER_SERVICE_TOKEN}"
     volumes:
     - ./parser:/app
     # Persist session file even if data/ is wiped carefully
@@ -143,6 +167,15 @@ services:
     - laravel
 
     command: node src/index.js
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'node -e "fetch(\"http://localhost:3000/health\", {headers:{Authorization: \"Bearer \" + process.env.PARSER_SERVICE_TOKEN}}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   db_data:

@@ -12,6 +12,7 @@ use App\Services\Vk\GroupScanner;
 use App\Services\Vk\ParserClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -49,6 +50,22 @@ class ScanVkGroupJob implements ShouldQueue
         }
 
         $this->onQueue('vk.scan');
+    }
+
+    /**
+     * A manual run and a scheduled wave must not scrape the same group at the
+     * same time. This also keeps the lead unique index from becoming the
+     * normal concurrency-control mechanism.
+     *
+     * @return list<WithoutOverlapping>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping("vk-scan-group:{$this->groupId}"))
+                ->releaseAfter(60)
+                ->expireAfter($this->timeout + 60),
+        ];
     }
 
     public function handle(GroupScanner $scanner, ParserClient $parser): void

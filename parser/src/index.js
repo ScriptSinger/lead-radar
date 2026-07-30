@@ -6,8 +6,28 @@ const logger = require("./utils/logger");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
+const SERVICE_TOKEN = process.env.PARSER_SERVICE_TOKEN || "";
 
 app.use(express.json({ limit: "100kb" }));
+
+// The parser controls a browser session and must not be reachable as a public
+// scraping endpoint. Docker keeps it on the private network; this is the
+// second, application-level boundary.
+app.use((req, res, next) => {
+    if (!SERVICE_TOKEN) {
+        return res.status(503).json({
+            success: false,
+            error: "parser service token is not configured",
+        });
+    }
+
+    const authorization = req.get("authorization") || "";
+    if (authorization !== `Bearer ${SERVICE_TOKEN}`) {
+        return res.status(401).json({ success: false, error: "unauthorized" });
+    }
+
+    next();
+});
 
 app.get("/health", (req, res) => {
     const auth = sessionStatus();

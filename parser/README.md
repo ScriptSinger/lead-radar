@@ -15,6 +15,13 @@ docker compose up parser
 
 Default port: `3000`.
 
+## Access control
+
+Every endpoint requires `Authorization: Bearer $PARSER_SERVICE_TOKEN`.
+Set the same non-empty `PARSER_SERVICE_TOKEN` in Laravel and parser. In the
+production Compose file the port is not published; the development override
+binds it only to `127.0.0.1`.
+
 ## Health
 
 ```http
@@ -48,7 +55,8 @@ docker compose up -d parser
 docker compose exec parser node src/auth/login.js
 # → parser/data/vk-storage-state.json
 
-curl -s http://localhost:3000/health | jq .auth
+curl -s http://localhost:3000/health \
+  -H "Authorization: Bearer $PARSER_SERVICE_TOKEN" | jq .auth
 ```
 
 Re-login when session dies or captcha blocks scrapes.  
@@ -89,6 +97,7 @@ Scrape recent posts from a group/public page.
 
 ```bash
 curl -s -X POST http://localhost:3000/scrape/group \
+  -H "Authorization: Bearer $PARSER_SERVICE_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://vk.com/halturaufa","limit":6}'
 ```

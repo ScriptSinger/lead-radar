@@ -49,7 +49,9 @@
 
 ```bash
 cp .env.example .env
-# задать DB_*, APP_KEY, при необходимости TELEGRAM_*, NGROK_AUTHTOKEN
+# задать DB_*, APP_KEY, PARSER_SERVICE_TOKEN,
+# при необходимости TELEGRAM_*, NGROK_AUTHTOKEN
+# openssl rand -hex 32  # значение для PARSER_SERVICE_TOKEN
 
 docker compose up -d --build
 docker compose exec php php artisan key:generate
@@ -59,9 +61,10 @@ docker compose exec php php artisan migrate --seed
 
 Сервисы: `php`, `nginx` (:80), `mysql`, `redis`, `parser` (:3000), `worker`, `scheduler`, опционально `ngrok` (:4040).
 
-Worker ждёт healthy MySQL и слушает очереди:
+`worker-scan` ждёт healthy MySQL + parser и слушает только тяжёлую очередь `vk.scan`.
+`worker-ops` слушает операционные очереди:
 
-`vk.scan`, `telegram.webhook`, `broadcast.telegram`, `default`.
+`telegram.webhook`, `broadcast.telegram`, `default`.
 
 ---
 
@@ -74,11 +77,12 @@ Worker ждёт healthy MySQL и слушает очереди:
 | `CACHE_STORE` | `file` — стабильнее для worker, чем cache DB при старте |
 | `PARSER_URL` | URL parser, в Docker: `http://parser:3000` |
 | `PARSER_TIMEOUT` | Таймаут HTTP к parser (сек), default 180 |
+| `PARSER_SERVICE_TOKEN` | Обязательный в production bearer-токен между Laravel и parser |
 | `VK_SCAN_*` | Только fallback; **боевые** параметры — MoonShine **Scan Settings** |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Уведомления о лидах |
 | `TELEGRAM_NOTIFY_ENABLED` | `true`/`false` |
 | `TELEGRAM_WEBHOOK_URL` | Публичный URL webhook (ngrok) |
-| `TELEGRAM_WEBHOOK_SECRET` | Опциональный secret header |
+| `TELEGRAM_WEBHOOK_SECRET` | Обязательный в production secret header Telegram webhook |
 | `NGROK_AUTHTOKEN` | Для локального webhook |
 
 Полный шаблон: [`.env.example`](.env.example).

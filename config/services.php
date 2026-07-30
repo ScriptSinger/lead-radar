@@ -37,6 +37,8 @@ return [
 
     'parser' => [
         'url' => env('PARSER_URL', 'http://parser:3000'),
+        // Shared secret for the internal parser API. Required in production.
+        'service_token' => env('PARSER_SERVICE_TOKEN'),
         // Comments with offset pagination can take >60s
         'timeout' => (int) env('PARSER_TIMEOUT', 180),
     ],

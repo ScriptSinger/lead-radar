@@ -150,6 +150,11 @@ class VkGroupSeeder extends Seeder
                 'url' => 'https://vk.com/halturaufa',
                 'active' => true,
             ],
+            [
+                'name' => 'ЖК «Акварель» | Уфа',
+                'url' => 'https://m.vk.ru/gkakva',
+                'active' => true,
+            ],
         ];
 
         foreach ($groups as $group) {

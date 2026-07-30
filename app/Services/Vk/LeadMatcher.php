@@ -8,6 +8,7 @@ use App\Models\VkComment;
 use App\Models\VkPost;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
 
 /**
  * Match keywords against VK posts/comments and upsert Leads.
@@ -225,26 +226,39 @@ class LeadMatcher
             // Do not reset status on re-match if already processed
         ];
 
-        $existing = Lead::query()->where('dedupe_key', $key)->first();
+        try {
+            // Let the database's unique index arbitrate concurrent scans. A
+            // read-then-insert here races when an admin/manual scan overlaps
+            // the scheduled wave.
+            Lead::query()->create([
+                ...$attributes,
+                'dedupe_key' => $key,
+                'status' => 'new',
+            ]);
 
-        if ($existing) {
-            $existing->fill([
-                'text' => $attributes['text'],
-                'url' => $attributes['url'],
-                'score' => $attributes['score'],
-                // keep status, group_id, etc.
-                'group_id' => $groupId,
-            ])->save();
-
-            return false;
+            return true;
+        } catch (QueryException $e) {
+            if (! $this->isDuplicateKey($e)) {
+                throw $e;
+            }
         }
 
-        Lead::query()->create([
-            ...$attributes,
-            'dedupe_key' => $key,
-            'status' => 'new',
-        ]);
+        // The conflicting row is committed before the duplicate-key error is
+        // returned, so this lookup is safe. Keep the operator's status intact.
+        $existing = Lead::query()->where('dedupe_key', $key)->firstOrFail();
+        $existing->fill([
+            'text' => $attributes['text'],
+            'url' => $attributes['url'],
+            'score' => $attributes['score'],
+            'group_id' => $groupId,
+        ])->save();
 
-        return true;
+        return false;
+    }
+
+    private function isDuplicateKey(QueryException $e): bool
+    {
+        return in_array((string) $e->getCode(), ['23000', '23505'], true)
+            || str_contains(mb_strtolower($e->getMessage()), 'unique constraint');
     }
 }

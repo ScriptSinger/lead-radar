@@ -31,6 +31,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (app()->environment('production') && blank(config('services.telegram.webhook_secret'))) {
+            throw new \LogicException(
+                'TELEGRAM_WEBHOOK_SECRET must be configured in production.'
+            );
+        }
+
+        if (app()->environment('production') && blank(config('services.parser.service_token'))) {
+            throw new \LogicException(
+                'PARSER_SERVICE_TOKEN must be configured in production.'
+            );
+        }
+
         Keyword::observe(KeywordObserver::class);
         Lead::observe(LeadObserver::class);
 
