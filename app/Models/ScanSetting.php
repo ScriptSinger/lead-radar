@@ -131,6 +131,33 @@ class ScanSetting extends Model
         return max(0, min(600, (int) $this->group_delay_seconds));
     }
 
+    /**
+     * The parser serializes browser navigations. Use recent successful runs as
+     * a lower bound for the next wave's stagger, while never lowering the
+     * operator-selected delay.
+     */
+    public function effectiveGroupDelaySeconds(): int
+    {
+        $configured = $this->normalizedGroupDelaySeconds();
+        if (! config('services.vk.adaptive_group_delay', true)) {
+            return $configured;
+        }
+
+        $averageMs = ScanRun::query()
+            ->where('status', ScanRun::STATUS_SUCCESS)
+            ->whereNotNull('duration_ms')
+            ->where('started_at', '>=', now()->subHours(6))
+            ->latest('id')
+            ->limit(10)
+            ->avg('duration_ms');
+
+        if ($averageMs === null) {
+            return $configured;
+        }
+
+        return max($configured, min(600, (int) ceil(((float) $averageMs) / 1000)));
+    }
+
     public function normalizedPostWindow(): string
     {
         return PostWindow::mode($this->post_window);

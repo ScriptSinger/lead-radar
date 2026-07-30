@@ -17,10 +17,11 @@ Default port: `3000`.
 
 ## Access control
 
-Every endpoint requires `Authorization: Bearer $PARSER_SERVICE_TOKEN`.
-Set the same non-empty `PARSER_SERVICE_TOKEN` in Laravel and parser. In the
-production Compose file the port is not published; the development override
-binds it only to `127.0.0.1`.
+In production every endpoint requires `Authorization: Bearer
+$PARSER_SERVICE_TOKEN`; Laravel and parser must use the same non-empty value.
+Local development can run without it (`PARSER_REQUIRE_TOKEN=false`), but the
+development override still binds the port only to `127.0.0.1`. Set
+`PARSER_REQUIRE_TOKEN=true` to test token protection locally.
 
 ## Health
 
@@ -91,6 +92,7 @@ Scrape recent posts from a group/public page.
 | `url`           | string         | Canonical `https://vk.com/wall...` link          |
 | `posted_at`     | string\|null   | ISO-8601 when parseable                          |
 | `author_id`     | number\|null   | VK user/group id when found                      |
+| `author_type`   | string\|null   | `user` or `group` when it can be derived         |
 | `posted_at_raw` | string\|null   | Original date string from the page               |
 
 **Example**
@@ -99,7 +101,7 @@ Scrape recent posts from a group/public page.
 curl -s -X POST http://localhost:3000/scrape/group \
   -H "Authorization: Bearer $PARSER_SERVICE_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"url":"https://vk.com/halturaufa","limit":6}'
+  -d '{"url":"https://vk.com/vk","limit":6}'
 ```
 
 ### `POST /scrape/comments`
@@ -123,6 +125,7 @@ Scrape comments for a wall post URL.
 | `url`               | string         | Link with `?reply=` when possible    |
 | `posted_at`         | string\|null   | ISO-8601 when parseable              |
 | `author_id`         | number\|null   | Author id when found                 |
+| `author_type`       | string\|null   | `user` or `group` when known         |
 | `posted_at_raw`     | string\|null   | Original date string                 |
 
 ## Behaviour (Phase 1)

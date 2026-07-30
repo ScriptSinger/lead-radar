@@ -26,7 +26,10 @@ return new class extends Migration
             $table->index(['post_id', 'parent_vk_comment_id']);
             $table->index(['post_id', 'thread_root_id']);
             $table->text('text');
+            // Legacy absolute id plus canonical signed VK id (groups may be negative).
             $table->unsignedBigInteger('author_id')->nullable();
+            $table->bigInteger('author_vk_id')->nullable();
+            $table->string('author_type', 16)->nullable();
             $table->string('url')->nullable();
             $table->timestamp('posted_at');
             $table->timestamps();

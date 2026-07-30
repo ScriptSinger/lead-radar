@@ -14,6 +14,8 @@ class VkPost extends Model
         'text',
         'url',
         'author_id',
+        'author_vk_id',
+        'author_type',
         'posted_at',
     ];
 
@@ -22,6 +24,7 @@ class VkPost extends Model
         return [
             'posted_at' => 'datetime',
             'author_id' => 'integer',
+            'author_vk_id' => 'integer',
         ];
     }
 

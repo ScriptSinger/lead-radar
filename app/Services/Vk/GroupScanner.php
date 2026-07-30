@@ -83,6 +83,12 @@ class GroupScanner
             'window_cutoff' => $windowCutoff?->toIso8601String(),
             'errors' => [],
             'duration_ms' => 0,
+            'timings_ms' => [
+                'health' => 0,
+                'posts_fetch' => 0,
+                'comments_fetch' => 0,
+                'lead_match' => 0,
+            ],
             'scan_run_id' => $run->id,
         ];
 
@@ -103,13 +109,17 @@ class GroupScanner
                 throw new \InvalidArgumentException(VkUrl::validationMessage().' Got: '.$group->url);
             }
 
+            $phaseStartedAt = microtime(true);
             if (! $this->parser->health()) {
                 throw new ParserUnavailableException(
                     'Parser is not healthy at '.config('services.parser.url')
                 );
             }
+            $stats['timings_ms']['health'] = $this->elapsedMs($phaseStartedAt);
 
+            $phaseStartedAt = microtime(true);
             $rawPosts = $this->parser->scrapeGroup($group->url, $limit);
+            $stats['timings_ms']['posts_fetch'] = $this->elapsedMs($phaseStartedAt);
             $stats['posts_fetched'] = count($rawPosts);
 
             if ($stats['posts_fetched'] === 0) {
@@ -158,6 +168,7 @@ class GroupScanner
             // Comments: ALL posts from this scrape (top-N wall), not only in-window.
             // Old posts often stay on the wall while new replies with keywords appear.
             if ($withComments) {
+                $phaseStartedAt = microtime(true);
                 foreach ($savedPosts as $post) {
                     if (! $post->url) {
                         continue;
@@ -185,9 +196,11 @@ class GroupScanner
                         ]);
                     }
                 }
+                $stats['timings_ms']['comments_fetch'] = $this->elapsedMs($phaseStartedAt);
             }
 
             try {
+                $phaseStartedAt = microtime(true);
                 // Post body: only in-window (avoid re-flagging old post text every scan).
                 // Comments: every post we just scraped (including outside window).
                 $created = 0;
@@ -212,6 +225,7 @@ class GroupScanner
 
                 $stats['leads_created'] += $created;
                 $stats['leads_updated'] += $updated;
+                $stats['timings_ms']['lead_match'] = $this->elapsedMs($phaseStartedAt);
 
                 Log::info('vk.leads.matched', [
                     'created' => $created,
@@ -261,6 +275,7 @@ class GroupScanner
                 'leads_created' => $stats['leads_created'],
                 'leads_updated' => $stats['leads_updated'],
                 'error_count' => count($stats['errors']),
+                'timings_ms' => $stats['timings_ms'],
             ]);
 
             return $stats;
@@ -341,11 +356,13 @@ class GroupScanner
             $url = 'https://vk.com/wall'.$vkPostId;
         }
 
+        $author = $this->authorIdentity($raw['author_id'] ?? null, $raw['author_type'] ?? null);
+
         $attributes = [
             'group_id' => $group->id,
             'text' => $raw['text'] ?? null,
             'url' => $url,
-            'author_id' => $this->nullableInt($raw['author_id'] ?? null),
+            ...$author,
             'posted_at' => $this->resolvePostedAt(
                 $raw['posted_at'] ?? null,
                 $raw['posted_at_raw'] ?? null,
@@ -440,10 +457,12 @@ class GroupScanner
             $raw['parent_comment_id'] ?? $raw['parent_vk_comment_id'] ?? null
         );
 
+        $author = $this->authorIdentity($raw['author_id'] ?? null, $raw['author_type'] ?? null);
+
         $attributes = [
             'parent_vk_comment_id' => $parentVkId,
             'text' => (string) ($raw['text'] ?? ''),
-            'author_id' => $this->nullableInt($raw['author_id'] ?? null),
+            ...$author,
             'url' => $url,
             'posted_at' => $this->resolvePostedAt(
                 $raw['posted_at'] ?? null,
@@ -514,5 +533,26 @@ class GroupScanner
         }
 
         return null;
+    }
+
+    private function elapsedMs(float $startedAt): int
+    {
+        return (int) round((microtime(true) - $startedAt) * 1000);
+    }
+
+    /** @return array{author_id: ?int, author_vk_id: ?int, author_type: ?string} */
+    private function authorIdentity(mixed $rawId, mixed $rawType): array
+    {
+        $vkId = $this->nullableInt($rawId);
+        $type = is_string($rawType) && in_array($rawType, ['user', 'group'], true)
+            ? $rawType
+            : ($vkId !== null && $vkId < 0 ? 'group' : null);
+
+        return [
+            // Legacy column is unsigned; never persist a negative VK owner id.
+            'author_id' => $vkId === null ? null : abs($vkId),
+            'author_vk_id' => $vkId,
+            'author_type' => $type,
+        ];
     }
 }

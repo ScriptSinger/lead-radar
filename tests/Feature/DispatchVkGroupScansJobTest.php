@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\DispatchVkGroupScansJob;
 use App\Jobs\ScanVkGroupJob;
 use App\Models\VkGroup;
+use App\Models\ScanRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -49,5 +50,27 @@ class DispatchVkGroupScansJobTest extends TestCase
                 && $job->withComments === true
                 && $job->trigger === 'test';
         });
+    }
+
+    public function test_recent_slow_scans_raise_the_next_wave_delay(): void
+    {
+        config(['services.vk.adaptive_group_delay' => true]);
+        $group = VkGroup::query()->create([
+            'name' => 'Slow',
+            'url' => 'https://vk.com/slow',
+            'active' => true,
+        ]);
+        $settings = \App\Models\ScanSetting::current();
+        $settings->forceFill(['group_delay_seconds' => 10])->save();
+
+        ScanRun::query()->create([
+            'group_id' => $group->id,
+            'status' => ScanRun::STATUS_SUCCESS,
+            'duration_ms' => 121000,
+            'started_at' => now(),
+            'finished_at' => now(),
+        ]);
+
+        $this->assertSame(121, $settings->fresh()->effectiveGroupDelaySeconds());
     }
 }

@@ -210,6 +210,7 @@ function normalizePost(raw) {
         url,
         posted_at: parseVkDate(postedAtRaw) || (isIso(raw.posted_at) ? raw.posted_at : null),
         author_id: authorId,
+        author_type: raw.author_type === "group" || raw.author_type === "user" ? raw.author_type : null,
         posted_at_raw: postedAtRaw,
     };
 }
@@ -254,6 +255,7 @@ function normalizeComment(raw, fallbackPostId = null) {
         url,
         posted_at: parseVkDate(postedAtRaw) || (isIso(raw.posted_at) ? raw.posted_at : null),
         author_id: authorId,
+        author_type: raw.author_type === "group" || raw.author_type === "user" ? raw.author_type : null,
         posted_at_raw: postedAtRaw,
     };
 }

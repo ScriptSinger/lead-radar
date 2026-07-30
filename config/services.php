@@ -78,6 +78,9 @@ return [
         // After N consecutive VK_CAPTCHA/LOGIN/BLOCKED job failures → pause auto schedule
         'captcha_pause_threshold' => (int) env('VK_CAPTCHA_PAUSE_THRESHOLD', 3),
         'captcha_pause_minutes' => (int) env('VK_CAPTCHA_PAUSE_MINUTES', 60),
+        // Use recent successful scan durations to prevent the next wave from
+        // enqueueing groups faster than the single Playwright parser can serve.
+        'adaptive_group_delay' => filter_var(env('VK_ADAPTIVE_GROUP_DELAY', true), FILTER_VALIDATE_BOOL),
     ],
 
 ];

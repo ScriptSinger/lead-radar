@@ -16,6 +16,10 @@ return new class extends Migration
             $table->string('word')->unique();
             // Storing type as string for flexibility, e.g., 'post', 'comment', 'both'
             $table->string('type')->default('both');
+            // substring preserves stem matching; whole_word reduces false positives.
+            $table->string('match_mode', 16)->default('substring');
+            $table->text('negative_words')->nullable();
+            $table->unsignedSmallInteger('score')->default(10);
             $table->timestamps();
         });
     }

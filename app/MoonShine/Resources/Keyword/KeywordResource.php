@@ -33,6 +33,11 @@ class KeywordResource extends ModelResource
                 'comment' => 'Comment',
                 'both' => 'Both',
             ])->sortable(),
+            Select::make('Match mode', 'match_mode')->options([
+                'substring' => 'Substring (supports stems)',
+                'whole_word' => 'Whole word / phrase',
+            ])->sortable(),
+            Text::make('Score', 'score')->sortable(),
         ];
     }
 
@@ -46,6 +51,13 @@ class KeywordResource extends ModelResource
                 'comment' => 'Comment',
                 'both' => 'Both',
             ])->default('both'),
+            Select::make('Match mode', 'match_mode')->options([
+                'substring' => 'Substring (supports stems)',
+                'whole_word' => 'Whole word / phrase',
+            ])->default('substring'),
+            Text::make('Negative words', 'negative_words')
+                ->hint('Comma or newline separated; a match suppresses the lead.'),
+            Text::make('Score', 'score')->default(10),
         ];
     }
 
@@ -59,6 +71,12 @@ class KeywordResource extends ModelResource
                 'comment' => 'Comment',
                 'both' => 'Both',
             ]),
+            Select::make('Match mode', 'match_mode')->options([
+                'substring' => 'Substring (supports stems)',
+                'whole_word' => 'Whole word / phrase',
+            ]),
+            Text::make('Negative words', 'negative_words'),
+            Text::make('Score', 'score'),
             HasMany::make('Leads', 'leads', resource: LeadResource::class),
         ];
     }

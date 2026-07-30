@@ -55,6 +55,13 @@ class LeadMatcherTest extends TestCase
         $this->assertFalse($this->matcher->matches('   ', 'слово'));
     }
 
+    public function test_whole_word_mode_avoids_partial_word_matches(): void
+    {
+        $this->assertTrue($this->matcher->matches('Нужен мастер сегодня', 'мастер', 'whole_word'));
+        $this->assertFalse($this->matcher->matches('мастерская мебель', 'мастер', 'whole_word'));
+        $this->assertTrue($this->matcher->matches('мастерская мебель', 'мастер', 'substring'));
+    }
+
     public function test_dedupe_key_format(): void
     {
         $this->assertSame('p:5:k:2', $this->matcher->dedupeKey('post', 2, 5, null));

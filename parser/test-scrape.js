@@ -3,7 +3,7 @@ const { scrapeComments } = require("./src/scrapers/vkComments");
 const { closeBrowser } = require("./src/browser/playwright");
 
 async function run() {
-    const url = process.argv[2] || "https://vk.com/halturaufa";
+    const url = process.argv[2] || "https://vk.com/vk";
     const limit = Number(process.argv[3] || 6);
     const mode = process.argv[4] || "group"; // group | comments
 

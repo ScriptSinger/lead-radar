@@ -21,7 +21,6 @@ services:
 
     networks:
       - laravel
-      # - ufamasters_laravel
 
   nginx:
     image: nginx:1.25-alpine
@@ -32,18 +31,6 @@ services:
       - php
     networks:
       - laravel
-      # - ufamasters_laravel
-
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.archivarius.rule=Host(`archivarius.ufamasters.ru`)"
-      - "traefik.http.routers.archivarius.entrypoints=websecure"
-      - "traefik.http.routers.archivarius.tls.certresolver=myresolver"
-
-      - "traefik.http.routers.archivarius-insecure.rule=Host(`archivarius.ufamasters.ru`)"
-      - "traefik.http.routers.archivarius-insecure.entrypoints=web"
-      - "traefik.http.routers.archivarius-insecure.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
 
   mysql:
     image: mysql:8.0.38-debian
@@ -88,6 +75,9 @@ services:
       parser:
         condition: service_healthy
     restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
     # Wait for DB, then process queues (vk.scan needs long Playwright timeout).
     # IMPORTANT: keep queue:work args on ONE logical line — bare newlines inside
     # sh -c end the command early (worker would listen only to "default").
@@ -115,6 +105,9 @@ services:
       mysql:
         condition: service_healthy
     restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
     command:
       - sh
       - -c
@@ -158,6 +151,7 @@ services:
       VK_PASSWORD: "${VK_PASSWORD:-}"
       VK_SESSION_PATH: "${VK_SESSION_PATH:-/app/data/vk-storage-state.json}"
       PARSER_SERVICE_TOKEN: "${PARSER_SERVICE_TOKEN}"
+      PARSER_REQUIRE_TOKEN: "${PARSER_REQUIRE_TOKEN:-false}"
     volumes:
     - ./parser:/app
     # Persist session file even if data/ is wiped carefully
@@ -168,6 +162,9 @@ services:
 
     command: node src/index.js
     restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test:
         - CMD-SHELL
@@ -181,7 +178,5 @@ volumes:
   db_data:
 
 networks:
-  # ufamasters_laravel:
-  #   external: true # сеть первого окружения
   laravel:
     driver: bridge

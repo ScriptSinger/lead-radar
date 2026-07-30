@@ -7,6 +7,9 @@ const logger = require("./utils/logger");
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const SERVICE_TOKEN = process.env.PARSER_SERVICE_TOKEN || "";
+const REQUIRE_SERVICE_TOKEN =
+    process.env.APP_ENV === "production" ||
+    process.env.PARSER_REQUIRE_TOKEN === "true";
 
 app.use(express.json({ limit: "100kb" }));
 
@@ -15,10 +18,14 @@ app.use(express.json({ limit: "100kb" }));
 // second, application-level boundary.
 app.use((req, res, next) => {
     if (!SERVICE_TOKEN) {
-        return res.status(503).json({
-            success: false,
-            error: "parser service token is not configured",
-        });
+        if (REQUIRE_SERVICE_TOKEN) {
+            return res.status(503).json({
+                success: false,
+                error: "parser service token is not configured",
+            });
+        }
+
+        return next();
     }
 
     const authorization = req.get("authorization") || "";

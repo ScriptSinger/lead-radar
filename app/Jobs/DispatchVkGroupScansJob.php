@@ -41,7 +41,7 @@ class DispatchVkGroupScansJob implements ShouldQueue
         $settings = ScanSetting::current();
         $limit = max(1, min(30, $this->limit ?? $settings->normalizedLimit()));
         $withComments = $this->withComments ?? (bool) $settings->with_comments;
-        $delaySeconds = $settings->normalizedGroupDelaySeconds();
+        $delaySeconds = $settings->effectiveGroupDelaySeconds();
         $trigger = $this->trigger ?: 'schedule';
 
         $query = VkGroup::query()
@@ -83,6 +83,7 @@ class DispatchVkGroupScansJob implements ShouldQueue
             'dispatched' => $dispatched,
             'skipped_invalid_url' => $skipped,
             'delay_step' => $delaySeconds,
+            'configured_delay_step' => $settings->normalizedGroupDelaySeconds(),
             'with_comments' => $withComments,
             'limit' => $limit,
             'post_window' => $settings->normalizedPostWindow(),

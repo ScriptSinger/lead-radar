@@ -6,9 +6,9 @@ use App\Models\Keyword;
 use App\Models\Lead;
 use App\Models\VkComment;
 use App\Models\VkPost;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Database\QueryException;
 
 /**
  * Match keywords against VK posts/comments and upsert Leads.
@@ -38,7 +38,7 @@ class LeadMatcher
         $keywords = $this->keywordsFor('post');
 
         foreach ($keywords as $keyword) {
-            if (! $this->matches($text, $keyword->word)) {
+            if (! $this->matchesKeyword($text, $keyword)) {
                 $stats['skipped']++;
 
                 continue;
@@ -89,7 +89,7 @@ class LeadMatcher
         $keywords = $this->keywordsFor('comment');
 
         foreach ($keywords as $keyword) {
-            if (! $this->matches($text, $keyword->word)) {
+            if (! $this->matchesKeyword($text, $keyword)) {
                 $stats['skipped']++;
 
                 continue;
@@ -158,7 +158,11 @@ class LeadMatcher
         return $stats;
     }
 
-    public function matches(string $haystack, string $needle): bool
+    /**
+     * `whole_word` avoids matching inside another Cyrillic/Latin word. The
+     * default `substring` preserves existing stem keyword behavior.
+     */
+    public function matches(string $haystack, string $needle, string $mode = 'substring'): bool
     {
         $h = $this->normalize($haystack);
         $n = $this->normalize($needle);
@@ -167,7 +171,14 @@ class LeadMatcher
             return false;
         }
 
-        return mb_strpos($h, $n) !== false;
+        if ($mode !== 'whole_word') {
+            return mb_strpos($h, $n) !== false;
+        }
+
+        return preg_match(
+            '/(?<![\p{L}\p{N}_])'.preg_quote($n, '/').'(?![\p{L}\p{N}_])/u',
+            $h,
+        ) === 1;
     }
 
     public function normalize(string $value): string
@@ -222,7 +233,7 @@ class LeadMatcher
             'keyword_id' => $keyword->id,
             'text' => $text,
             'url' => $url,
-            'score' => self::SCORE_PER_HIT,
+            'score' => $this->scoreFor($keyword),
             // Do not reset status on re-match if already processed
         ];
 
@@ -260,5 +271,38 @@ class LeadMatcher
     {
         return in_array((string) $e->getCode(), ['23000', '23505'], true)
             || str_contains(mb_strtolower($e->getMessage()), 'unique constraint');
+    }
+
+    private function matchesKeyword(string $text, Keyword $keyword): bool
+    {
+        if (! $this->matches($text, $keyword->word, $keyword->match_mode ?? 'substring')) {
+            return false;
+        }
+
+        foreach ($this->negativeWords($keyword->negative_words) as $negative) {
+            if ($this->matches($text, $negative, 'substring')) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @return list<string> */
+    private function negativeWords(?string $value): array
+    {
+        if ($value === null || trim($value) === '') {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            'trim',
+            preg_split('/[,\r\n]+/u', $value) ?: [],
+        )));
+    }
+
+    private function scoreFor(Keyword $keyword): int
+    {
+        return max(1, min(1000, (int) ($keyword->score ?: self::SCORE_PER_HIT)));
     }
 }

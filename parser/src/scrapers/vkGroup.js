@@ -127,10 +127,17 @@ async function scrapeGroup({ url, limit = DEFAULT_LIMIT }) {
                         post.querySelector(".post_author a");
 
                     let authorId = null;
+                    let authorType = null;
                     if (authorEl) {
                         const href = authorEl.getAttribute("href") || "";
                         const m = href.match(/(?:id|club|public|event)(-?\d+)/i);
-                        if (m) authorId = m[1];
+                        const prefix = href.match(/(?:^|\/)(id|club|public|event)-?\d+/i);
+                        if (m) {
+                            authorId = m[1];
+                            authorType = prefix && /^(club|public|event)$/i.test(prefix[1])
+                                ? "group"
+                                : "user";
+                        }
                     }
 
                     // Prefer explicit wall link in the date block
@@ -165,6 +172,7 @@ async function scrapeGroup({ url, limit = DEFAULT_LIMIT }) {
                         posted_at: postedAtRaw,
                         posted_at_raw: postedAtRaw,
                         author_id: authorId,
+                        author_type: authorType,
                     });
 
                     if (result.length >= max) break;

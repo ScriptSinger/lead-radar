@@ -10,7 +10,15 @@ class Keyword extends Model
     protected $fillable = [
         'word',
         'type',
+        'match_mode',
+        'negative_words',
+        'score',
     ];
+
+    protected function casts(): array
+    {
+        return ['score' => 'integer'];
+    }
 
     public function leads(): HasMany
     {

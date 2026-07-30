@@ -62,7 +62,6 @@ services:
     image: ngrok/ngrok:3
     ports:
       - "4040:4040"
-    container_name: ngrok
     depends_on:
       - nginx
     environment:

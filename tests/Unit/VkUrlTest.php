@@ -11,7 +11,7 @@ class VkUrlTest extends TestCase
     {
         $this->assertTrue(VkUrl::isValid('https://vk.com/v_inorse'));
         $this->assertTrue(VkUrl::isValid('https://vk.ru/club123'));
-        $this->assertTrue(VkUrl::isValid('http://m.vk.com/halturaufa'));
+        $this->assertTrue(VkUrl::isValid('http://m.vk.com/test_group'));
         $this->assertTrue(VkUrl::isValid('https://www.vk.com/public1'));
     }
 

@@ -79,6 +79,7 @@ docker compose exec php php artisan migrate --seed
 | `PARSER_TIMEOUT` | Таймаут HTTP к parser (сек), default 180 |
 | `PARSER_SERVICE_TOKEN` | Обязательный в production bearer-токен между Laravel и parser |
 | `VK_SCAN_*` | Только fallback; **боевые** параметры — MoonShine **Scan Settings** |
+| `VK_ADAPTIVE_GROUP_DELAY` | Автоматически повышает задержку следующей волны по среднему времени последних сканов |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Уведомления о лидах |
 | `TELEGRAM_NOTIFY_ENABLED` | `true`/`false` |
 | `TELEGRAM_WEBHOOK_URL` | Публичный URL webhook (ngrok) |
@@ -143,13 +144,18 @@ php artisan db:seed --class=ScanSettingSeeder
 ## Matching (v1)
 
 - Нормализация: `mb_strtolower`, `ё→е`, схлопывание пробелов.
-- Match: substring (`mb_strpos`).
+- Match: substring (`mb_strpos`) by default; per-keyword exact word/phrase mode is available.
+- Keyword quality controls: `substring` (default, supports stems) or `whole_word`, optional comma/newline-separated negative words, and score 1–1000.
 - Один lead на пару keyword × post или keyword × comment.
 - `dedupe_key`: `p:{postId}:k:{keywordId}` / `c:{commentId}:k:{keywordId}` (unique).
 - Повторный match **не сбрасывает** `status` (processed/ignored сохраняются).
 - Окно (`post_window`) режет только **текст поста** для keyword match:
   - `since_last_scan` / `today` / `all` — как раньше.
 - **Комментарии** качаются и матчятся для **всех** top-N постов с стены (старый пост + новые replies с ключевиком → lead).
+
+`scan_runs.stats.timings_ms` хранит время health-check, загрузки постов,
+комментариев и матчей. Используйте эти метрики, чтобы увеличивать задержку
+между группами и отключать комментарии при росте времени ответов VK.
 
 ---
 

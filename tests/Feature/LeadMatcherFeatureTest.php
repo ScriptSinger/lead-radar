@@ -146,6 +146,24 @@ class LeadMatcherFeatureTest extends TestCase
         $this->assertDatabaseCount('leads', 0);
     }
 
+    public function test_negative_words_suppress_a_keyword_match_and_custom_score_is_saved(): void
+    {
+        Keyword::query()->create([
+            'word' => 'ремонт',
+            'type' => 'post',
+            'match_mode' => 'whole_word',
+            'negative_words' => "вакансия\nищем сотрудника",
+            'score' => 35,
+        ]);
+
+        $noise = $this->makePost('Вакансия: нужен мастер по ремонтам');
+        $this->assertSame(0, $this->matcher->matchPost($noise)['created']);
+
+        $leadPost = $this->makePost('Нужен ремонт холодильника на дому');
+        $this->assertSame(1, $this->matcher->matchPost($leadPost)['created']);
+        $this->assertSame(35, Lead::query()->where('post_id', $leadPost->id)->value('score'));
+    }
+
     private function makePost(string $text): VkPost
     {
         return VkPost::query()->create([

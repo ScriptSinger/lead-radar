@@ -18,6 +18,8 @@ class VkComment extends Model
         'depth',
         'text',
         'author_id',
+        'author_vk_id',
+        'author_type',
         'url',
         'posted_at',
     ];
@@ -32,6 +34,7 @@ class VkComment extends Model
             'thread_root_id' => 'integer',
             'depth' => 'integer',
             'author_id' => 'integer',
+            'author_vk_id' => 'integer',
         ];
     }
 

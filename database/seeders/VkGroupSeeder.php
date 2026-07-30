@@ -146,11 +146,6 @@ class VkGroupSeeder extends Seeder
                 'active' => true,
             ],
             [
-                'name' => 'Халтура Уфа| Подработка в Уфе| Ежедневная оплата',
-                'url' => 'https://vk.com/halturaufa',
-                'active' => true,
-            ],
-            [
                 'name' => 'ЖК «Акварель» | Уфа',
                 'url' => 'https://m.vk.ru/gkakva',
                 'active' => true,

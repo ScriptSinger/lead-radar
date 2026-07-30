@@ -95,6 +95,7 @@ class GroupScannerTest extends TestCase
         $this->assertSame('test', $run->trigger);
         $this->assertSame(2, $run->posts_fetched);
         $this->assertSame(1, $run->leads_created);
+        $this->assertArrayHasKey('posts_fetch', $run->stats['timings_ms']);
 
         $this->group->refresh();
         $this->assertNotNull($this->group->last_scan_at);
@@ -108,6 +109,26 @@ class GroupScannerTest extends TestCase
         $this->assertDatabaseCount('vk_posts', 2);
         $this->assertDatabaseCount('leads', 1);
         $this->assertSame(2, ScanRun::query()->where('status', ScanRun::STATUS_SUCCESS)->count());
+    }
+
+    public function test_preserves_signed_vk_author_identity_without_breaking_legacy_column(): void
+    {
+        $this->fakeParserHealthy([[
+            'vk_post_id' => '-42_300',
+            'text' => 'Тест',
+            'url' => 'https://vk.com/wall-42_300',
+            'posted_at' => '2026-07-23T10:00:00+00:00',
+            'author_id' => -42,
+            'author_type' => 'group',
+        ]]);
+
+        app(GroupScanner::class)->scan($this->group, withComments: false, trigger: 'test');
+
+        $this->assertDatabaseHas('vk_posts', [
+            'author_id' => 42,
+            'author_vk_id' => -42,
+            'author_type' => 'group',
+        ]);
     }
 
     public function test_today_window_skips_older_posts_for_match_and_comments(): void

@@ -584,13 +584,17 @@ function extractMobileComments(fallbackPostId) {
         }
 
         let authorId = null;
+        let authorType = null;
         const authorEl =
             item.querySelector(".ReplyItem__name") ||
             item.querySelector("a.author");
         if (authorEl) {
             const ahref = authorEl.getAttribute("href") || "";
             const am = ahref.match(/(?:id|club|public)(-?\d+)/i);
-            if (am) authorId = am[1];
+            if (am) {
+                authorId = am[1];
+                authorType = /(?:^|\/)(club|public)-?\d+/i.test(ahref) ? "group" : "user";
+            }
         }
 
         const postedAtRaw =
@@ -607,6 +611,7 @@ function extractMobileComments(fallbackPostId) {
             posted_at: postedAtRaw,
             posted_at_raw: postedAtRaw,
             author_id: authorId,
+            author_type: authorType,
         });
     }
 
@@ -672,13 +677,17 @@ function extractDesktopComments(fallbackPostId) {
         }
 
         let authorId = null;
+        let authorType = null;
         const authorEl =
             item.querySelector("a.author") ||
             item.querySelector("[data-testid='comment_author']");
         if (authorEl) {
             const ahref = authorEl.getAttribute("href") || "";
             const am = ahref.match(/(?:id|club|public)(-?\d+)/i);
-            if (am) authorId = am[1];
+            if (am) {
+                authorId = am[1];
+                authorType = /(?:^|\/)(club|public)-?\d+/i.test(ahref) ? "group" : "user";
+            }
         }
 
         const postedAtRaw = replyLink?.textContent?.trim() || null;
@@ -696,6 +705,7 @@ function extractDesktopComments(fallbackPostId) {
             posted_at: postedAtRaw,
             posted_at_raw: postedAtRaw,
             author_id: authorId,
+            author_type: authorType,
         });
     }
 

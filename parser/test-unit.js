@@ -16,7 +16,7 @@ const { ScrapeError, isScrapeError } = require("./src/utils/scrapeError");
 const { isRetryable } = require("./src/utils/retry");
 
 // isVkUrl
-assert.strictEqual(isVkUrl("https://vk.com/halturaufa"), true);
+assert.strictEqual(isVkUrl("https://vk.com/test_group"), true);
 assert.strictEqual(isVkUrl("https://m.vk.com/wall-1_2"), true);
 assert.strictEqual(isVkUrl("https://vk.ru/public1"), true);
 assert.strictEqual(isVkUrl("https://google.com"), false);
@@ -67,7 +67,7 @@ assert.ok(comment.url.includes("reply=10"));
 
 // --- captcha / page probe ---
 const captchaSnap = {
-    url: "https://vk.com/challenge.html?tid=abc&redirect=/halturaufa",
+    url: "https://vk.com/challenge.html?tid=abc&redirect=/test_group",
     title: "Проверяем, что вы не робот",
     bodyText: "Проверяем, что вы не робот Продолжить",
     bodyHtmlSample: "<div>challenge</div>",
@@ -90,8 +90,8 @@ assert.strictEqual(captcha.isBlocking, true);
 assert.ok(captcha.signals.some((s) => s.id === "url_challenge"));
 
 const okSnap = {
-    url: "https://vk.com/halturaufa",
-    title: "Халтура Уфа",
+    url: "https://vk.com/test_group",
+    title: "Тестовая группа",
     bodyText: "Стена группы много текста постов Регистрация Войти",
     bodyHtmlSample: "<div data-testid=post></div>",
     bodyTextLen: 500,
