@@ -90,9 +90,9 @@ jobs:
 
           ssh -i ~/.ssh/id_ed25519 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
 
-            cd ~/ufamasters
+            cd ~/lead-radar
 
-            tar -xzf /tmp/release.tar.gz -C ~/ufamasters
+            tar -xzf /tmp/release.tar.gz -C ~/lead-radar
 
             echo "${{ secrets.ENV_FILE }}" > .env
 
