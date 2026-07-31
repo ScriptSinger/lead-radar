@@ -80,4 +80,20 @@ class KeywordResource extends ModelResource
             HasMany::make('Leads', 'leads', resource: LeadResource::class),
         ];
     }
+
+    protected function filters(): iterable
+    {
+        return [
+            Text::make('Word', 'word')->placeholder('Search keyword'),
+            Select::make('Type', 'type')->options([
+                'post' => 'Post',
+                'comment' => 'Comment',
+                'both' => 'Both',
+            ])->nullable(),
+            Select::make('Match mode', 'match_mode')->options([
+                'substring' => 'Substring (supports stems)',
+                'whole_word' => 'Whole word / phrase',
+            ])->nullable(),
+        ];
+    }
 }

@@ -10,9 +10,13 @@ use MoonShine\UI\Components\Table\TableBuilder;
 use MoonShine\Contracts\UI\FieldContract;
 use MoonShine\Laravel\QueryTags\QueryTag;
 use MoonShine\UI\Components\Metrics\Wrapped\Metric;
-use MoonShine\UI\Fields\ID;
 use App\MoonShine\Resources\VkPost\VkPostResource;
+use App\MoonShine\Resources\VkGroup\VkGroupResource;
+use App\Models\VkGroup;
+use MoonShine\Laravel\Fields\Relationships\BelongsTo;
 use MoonShine\Support\ListOf;
+use MoonShine\UI\Fields\Date;
+use MoonShine\UI\Fields\Text;
 use Throwable;
 
 
@@ -46,7 +50,17 @@ class VkPostIndexPage extends IndexPage
      */
     protected function filters(): iterable
     {
-        return [];
+        return [
+            BelongsTo::make(
+                'Group',
+                'group',
+                formatted: static fn (VkGroup $group): string => $group->name,
+                resource: VkGroupResource::class,
+            )->nullable(),
+            Text::make('Text', 'text')->placeholder('Search post text'),
+            Text::make('URL', 'url')->placeholder('Search by VK URL'),
+            Date::make('Posted on', 'posted_at')->nullable(),
+        ];
     }
 
     /**

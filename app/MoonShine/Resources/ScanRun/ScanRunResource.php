@@ -16,6 +16,7 @@ use MoonShine\Support\ListOf;
 use MoonShine\UI\Fields\Date;
 use MoonShine\UI\Fields\ID;
 use MoonShine\UI\Fields\Number;
+use MoonShine\UI\Fields\Select;
 use MoonShine\UI\Fields\Text;
 use MoonShine\UI\Fields\Textarea;
 
@@ -108,6 +109,30 @@ class ScanRunResource extends ModelResource
             Number::make('Duration ms', 'duration_ms'),
             Date::make('Started', 'started_at')->format('Y-m-d H:i:s'),
             Date::make('Finished', 'finished_at')->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    protected function filters(): iterable
+    {
+        return [
+            BelongsTo::make(
+                'Group',
+                'group',
+                formatted: static fn (VkGroup $g): string => $g->name,
+                resource: VkGroupResource::class,
+            )->nullable(),
+            Select::make('Status', 'status')->options([
+                'running' => 'Running',
+                'success' => 'Success',
+                'failed' => 'Failed',
+            ])->nullable(),
+            Select::make('Trigger', 'trigger')->options([
+                'schedule' => 'Schedule',
+                'admin' => 'Admin',
+                'manual' => 'Manual',
+                'job' => 'Job',
+            ])->nullable(),
+            Date::make('Started on', 'started_at')->nullable(),
         ];
     }
 }

@@ -79,6 +79,15 @@ class VkGroupResource extends ModelResource
         ];
     }
 
+    protected function filters(): iterable
+    {
+        return [
+            Text::make('Name', 'name')->placeholder('Search by group name'),
+            Text::make('URL', 'url')->placeholder('Search by VK URL'),
+            Switcher::make('Active', 'active')->nullable(),
+        ];
+    }
+
     /**
      * Queue a scan for this group (does not block the admin request).
      */
