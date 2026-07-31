@@ -49,7 +49,7 @@ class CommentTreeResolver
         foreach ($comments as $comment) {
             $parentVk = $comment->parent_vk_comment_id;
 
-            // True root: no parent claimed by parser
+            // True root: VK API did not report a parent
             if ($parentVk === null) {
                 $comment->forceFill([
                     'parent_id' => null,

@@ -53,11 +53,6 @@ services:
     networks:
       - laravel
 
-  # Local development only. Production compose does not publish parser.
-  parser:
-    ports:
-      - "127.0.0.1:3000:3000"
-
   ngrok:
     image: ngrok/ngrok:3
     ports:

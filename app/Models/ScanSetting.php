@@ -28,8 +28,6 @@ class ScanSetting extends Model
         'with_comments',
         'post_window',
         'last_dispatched_at',
-        'paused_until',
-        'pause_reason',
         'notes',
     ];
 
@@ -42,7 +40,6 @@ class ScanSetting extends Model
             'group_delay_seconds' => 'integer',
             'scan_limit' => 'integer',
             'last_dispatched_at' => 'datetime',
-            'paused_until' => 'datetime',
         ];
     }
 
@@ -50,7 +47,7 @@ class ScanSetting extends Model
      * Defaults used by seeder and firstOrCreate.
      *
      * Conservative first-run baseline: configured but disabled until an
-     * operator confirms the VK session and enables the schedule.
+     * operator configures the VK API token and enables the schedule.
      *
      * @return array<string, mixed>
      */
@@ -65,7 +62,7 @@ class ScanSetting extends Model
             'with_comments' => true,
             'post_window' => PostWindow::MODE_SINCE_LAST_SCAN,
             'last_dispatched_at' => null,
-            'notes' => 'Automatic scanning is off by default. After VK login, enable it in MoonShine or Telegram. Policy: every 30 minutes, 50s between groups, last 8 posts, comments on, match since last scan. Raise interval / delay when adding many groups to avoid VK blocks.',
+            'notes' => 'Automatic scanning is off by default. After configuring VK_API_TOKEN, enable it in MoonShine or Telegram. Policy: every 30 minutes, 50s between groups, last 8 posts, comments on, match since last scan.',
         ];
     }
 
@@ -132,50 +129,9 @@ class ScanSetting extends Model
         return max(0, min(600, (int) $this->group_delay_seconds));
     }
 
-    /**
-     * The parser serializes browser navigations. Use recent successful runs as
-     * a lower bound for the next wave's stagger, while never lowering the
-     * operator-selected delay.
-     */
-    public function effectiveGroupDelaySeconds(): int
-    {
-        $configured = $this->normalizedGroupDelaySeconds();
-        if (! config('services.vk.adaptive_group_delay', true)) {
-            return $configured;
-        }
-
-        $averageMs = ScanRun::query()
-            ->where('status', ScanRun::STATUS_SUCCESS)
-            ->whereNotNull('duration_ms')
-            ->where('started_at', '>=', now()->subHours(6))
-            ->latest('id')
-            ->limit(10)
-            ->avg('duration_ms');
-
-        if ($averageMs === null) {
-            return $configured;
-        }
-
-        return max($configured, min(600, (int) ceil(((float) $averageMs) / 1000)));
-    }
-
     public function normalizedPostWindow(): string
     {
         return PostWindow::mode($this->post_window);
-    }
-
-    /**
-     * Auto captcha circuit-breaker is active (schedule tick must not fan-out).
-     */
-    public function isCaptchaPaused(?\DateTimeInterface $now = null): bool
-    {
-        if ($this->paused_until === null) {
-            return false;
-        }
-
-        $now = $now ? \Carbon\Carbon::parse($now) : now();
-
-        return $this->paused_until->greaterThan($now);
     }
 
     /**
@@ -188,10 +144,6 @@ class ScanSetting extends Model
         }
 
         $now = $now ? \Carbon\Carbon::parse($now) : now();
-
-        if ($this->isCaptchaPaused($now)) {
-            return false;
-        }
 
         if ($this->last_dispatched_at === null) {
             return true;
@@ -233,8 +185,6 @@ class ScanSetting extends Model
             'with_comments' => $this->with_comments,
             'post_window' => $this->normalizedPostWindow(),
             'last_dispatched_at' => $this->last_dispatched_at?->toIso8601String(),
-            'paused_until' => $this->paused_until?->toIso8601String(),
-            'pause_reason' => $this->pause_reason,
         ], $extra));
     }
 }

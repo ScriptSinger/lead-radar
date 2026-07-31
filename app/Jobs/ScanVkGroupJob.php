@@ -3,12 +3,8 @@
 namespace App\Jobs;
 
 use App\Contracts\VkContentSource;
-use App\Exceptions\ParserUnavailableException;
-use App\Exceptions\VkScrapeException;
-use App\Models\ScanSetting;
 use App\Models\VkGroup;
 use App\Services\Telegram\TelegramNotifier;
-use App\Services\Vk\CaptchaPauseGuard;
 use App\Services\Vk\GroupScanner;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -18,7 +14,7 @@ use Throwable;
 
 /**
  * Scan one VK group (posts, optional comments, lead match).
- * Queue: vk.scan — long timeout for Playwright.
+ * Queue: vk.scan — VK API requests and lead matching.
  */
 class ScanVkGroupJob implements ShouldQueue
 {
@@ -84,20 +80,7 @@ class ScanVkGroupJob implements ShouldQueue
             return;
         }
 
-        // Drop remaining *scheduled* jobs while captcha pause is active (manual still runs)
-        if (
-            $this->trigger === 'schedule'
-            && ScanSetting::current()->isCaptchaPaused()
-        ) {
-            Log::info('vk.scan.job.skipped_captcha_pause', [
-                'group_id' => $this->groupId,
-                'paused_until' => ScanSetting::current()->paused_until?->toIso8601String(),
-            ]);
-
-            return;
-        }
-
-        // Pre-check without creating a failed run if parser is flapping
+        // Pre-check without creating a failed run if VK API is temporarily unavailable.
         if (! $contentSource->health()) {
             Log::warning('vk.scan.job.source_down_precheck', [
                 'group_id' => $this->groupId,
@@ -110,41 +93,15 @@ class ScanVkGroupJob implements ShouldQueue
                 return;
             }
 
-            throw new ParserUnavailableException(
-                'VK content source unavailable after '.$this->attempts().' attempts'
-            );
+            throw new \RuntimeException('VK API unavailable after '.$this->attempts().' attempts');
         }
 
-        try {
-            $stats = $scanner->scan(
-                $group,
-                max(1, min(30, $this->limit)),
-                $this->withComments,
-                $this->trigger,
-            );
-        } catch (VkScrapeException $e) {
-            // Captcha/login/block: do not thrash retries — fail immediately so circuit breaker and Telegram alerts trigger instantly
-            Log::error('vk.scan.job.scrape_blocked', [
-                'group_id' => $this->groupId,
-                'attempt' => $this->attempts(),
-                ...$e->context(),
-                'error' => $e->getMessage(),
-            ]);
-
-            if ($e->isBlocking()) {
-                throw $e;
-            }
-
-            if ($this->attempts() < $this->tries) {
-                $this->release(180);
-
-                return;
-            }
-
-            throw $e;
-        }
-
-        app(CaptchaPauseGuard::class)->recordSuccess();
+        $stats = $scanner->scan(
+            $group,
+            max(1, min(30, $this->limit)),
+            $this->withComments,
+            $this->trigger,
+        );
 
         Log::info('vk.scan.job.done', [
             'group_id' => $this->groupId,
@@ -162,19 +119,6 @@ class ScanVkGroupJob implements ShouldQueue
             'group_id' => $this->groupId,
             'error' => $e?->getMessage(),
         ];
-
-        if ($e instanceof VkScrapeException) {
-            $ctx = array_merge($ctx, $e->context());
-            if ($e->isBlocking()) {
-                $pause = app(CaptchaPauseGuard::class)->recordBlockingFailure(
-                    $e->errorCode,
-                    $this->groupId,
-                );
-                $ctx['captcha_streak'] = $pause['streak'];
-                $ctx['schedule_paused'] = $pause['paused'];
-                $ctx['paused_until'] = $pause['paused_until'];
-            }
-        }
 
         Log::error('vk.scan.job.failed', $ctx);
 
@@ -198,10 +142,6 @@ class ScanVkGroupJob implements ShouldQueue
             $group = VkGroup::query()->find($this->groupId);
             $name = $group?->name ?? ('#'.$this->groupId);
             $msg = $e?->getMessage() ?? 'unknown error';
-            if ($e instanceof VkScrapeException) {
-                $msg = "[{$e->errorCode}] {$msg}";
-            }
-
             $notifier->sendMessage(implode("\n", [
                 '🚨 <b>VK scan job failed</b>',
                 "👥 {$name}",

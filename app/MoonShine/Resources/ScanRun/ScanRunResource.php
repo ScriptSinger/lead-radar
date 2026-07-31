@@ -63,7 +63,6 @@ class ScanRunResource extends ModelResource
                 static fn (string $status): Color => match ($status) {
                     'success' => Color::GREEN,
                     'running' => Color::BLUE,
-                    'parser_down' => Color::ORANGE,
                     'failed' => Color::RED,
                     default => Color::GRAY,
                 }

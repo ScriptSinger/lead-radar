@@ -20,7 +20,6 @@ class VkApiScannerTest extends TestCase
     public function test_scanner_uses_official_api_source_for_posts_comments_and_leads(): void
     {
         config([
-            'services.vk.content_source' => 'api',
             'services.vk.api_token' => 'test-vk-token',
             'services.vk.api_url' => 'https://api.vk.test/method',
             'services.vk.post_window' => PostWindow::MODE_ALL,

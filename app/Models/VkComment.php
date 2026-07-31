@@ -106,7 +106,7 @@ class VkComment extends Model
     }
 
     /**
-     * Real top-level comment: parser did not report a parent.
+     * Real top-level comment: VK API did not report a parent.
      */
     public function isTrueRoot(): bool
     {

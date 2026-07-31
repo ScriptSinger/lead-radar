@@ -45,7 +45,7 @@ class TelegramWebhookController extends Controller
                 'start', 'help' => $notifier->sendMessage($this->helpText(), $chatId),
                 'ping' => $notifier->sendMessage('pong', $chatId),
                 'stats' => $notifier->sendMessage($notifier->formatStats(), $chatId),
-                'parser' => $this->parser($notifier, $chatId),
+                'scan' => $this->scan($notifier, $chatId),
                 'new' => $this->sendNewLeads($notifier, $chatId),
                 'mute' => $this->mute($notifier, $chatId),
                 'unmute' => $this->unmute($notifier, $chatId),
@@ -76,15 +76,15 @@ class TelegramWebhookController extends Controller
         $settings = \App\Models\ScanSetting::current();
 
         try {
-            if ($data === 'parser_start') {
+            if ($data === 'scan_start') {
                 $settings->update(['schedule_enabled' => true]);
-            } elseif ($data === 'parser_stop') {
+            } elseif ($data === 'scan_stop') {
                 $settings->update(['schedule_enabled' => false]);
             }
 
             $notifier->answerCallbackQuery($callbackQuery['id']);
 
-            $status = $notifier->formatParserStatus();
+            $status = $notifier->formatScanStatus();
             $notifier->editMessage($status['text'], $chatId, $messageId, 'HTML', $status['markup']);
         } catch (Throwable $e) {
             Log::error('telegram.webhook.callback_failed', [
@@ -150,7 +150,7 @@ class TelegramWebhookController extends Controller
             '🤖 <b>Lead Radar bot</b>',
             '',
             'Commands:',
-            '/parser — start/stop/status',
+            '/scan — start/stop/status',
             '/stats — counters',
             '/new — last new leads',
             '/mute — stop lead notifications',
@@ -160,9 +160,9 @@ class TelegramWebhookController extends Controller
         ]);
     }
 
-    private function parser(TelegramNotifier $notifier, string $chatId): void
+    private function scan(TelegramNotifier $notifier, string $chatId): void
     {
-        $status = $notifier->formatParserStatus();
+        $status = $notifier->formatScanStatus();
         $notifier->sendMessage($status['text'], $chatId, 'HTML', $status['markup']);
     }
 

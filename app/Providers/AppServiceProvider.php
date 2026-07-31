@@ -9,7 +9,6 @@ use App\Modules\VkApi\VkApiContentSource;
 use App\Observers\KeywordObserver;
 use App\Observers\LeadObserver;
 use App\Services\Telegram\TelegramNotifier;
-use App\Services\Vk\ParserContentSource;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -25,9 +24,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(VkContentSource::class, function ($app): VkContentSource {
-            return config('services.vk.content_source', 'parser') === 'api'
-                ? $app->make(VkApiContentSource::class)
-                : $app->make(ParserContentSource::class);
+            return $app->make(VkApiContentSource::class);
         });
 
         $this->app->singleton(TelegramNotifier::class, function ($app) {
@@ -46,14 +43,8 @@ class AppServiceProvider extends ServiceProvider
             );
         }
 
-        if (
-            app()->environment('production')
-            && config('services.vk.content_source', 'parser') === 'parser'
-            && blank(config('services.parser.service_token'))
-        ) {
-            throw new \LogicException(
-                'PARSER_SERVICE_TOKEN must be configured in production.'
-            );
+        if (app()->environment('production') && blank(config('services.vk.api_token'))) {
+            throw new \LogicException('VK_API_TOKEN must be configured in production.');
         }
 
         Keyword::observe(KeywordObserver::class);

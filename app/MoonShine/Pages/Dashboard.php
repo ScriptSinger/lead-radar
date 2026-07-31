@@ -60,7 +60,7 @@ class Dashboard extends Page
             : 'never';
 
         $failedRuns24h = ScanRun::query()
-            ->whereIn('status', [ScanRun::STATUS_FAILED, ScanRun::STATUS_PARSER_DOWN])
+            ->where('status', ScanRun::STATUS_FAILED)
             ->where('started_at', '>=', now()->subDay())
             ->count();
 

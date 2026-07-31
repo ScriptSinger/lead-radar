@@ -7,8 +7,7 @@ use App\Models\VkPost;
 /**
  * Normalized source for VK wall content.
  *
- * Sources may use the official VK API or the legacy page parser, while the
- * scanner stores exactly the same normalized post and comment payloads.
+ * The official VK API is normalized for storage by the scanner.
  */
 interface VkContentSource
 {

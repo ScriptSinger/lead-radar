@@ -94,8 +94,8 @@ class VkApiContentSource implements VkContentSource
 
     /**
      * `thread.items` is only a preview. Load all remaining replies using the
-     * documented thread anchor, so nested keyword matching matches the former
-     * parser behaviour instead of silently stopping at the preview.
+     * documented thread anchor, so nested keyword matching does not silently
+     * stop at the preview.
      *
      * @return list<array<string, mixed>>
      */

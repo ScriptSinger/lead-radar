@@ -12,20 +12,18 @@ return new class extends Migration
             $table->id();
             // Singleton profile name (v1: always "default")
             $table->string('name', 64)->default('default')->unique();
-            // Safety-first: operator enables automatic VK requests after login.
+            // Safety-first: operator enables automatic VK API requests explicitly.
             $table->boolean('schedule_enabled')->default(false);
             // How often the scheduler may start a new fan-out wave (minutes)
             $table->unsignedSmallInteger('interval_minutes')->default(30);
             // Stagger between ScanVkGroupJob dispatches (seconds)
             $table->unsignedSmallInteger('group_delay_seconds')->default(50);
-            // Top-N wall posts from parser (1–30)
+            // Top-N wall posts from VK API (1–30)
             $table->unsignedTinyInteger('scan_limit')->default(8);
             $table->boolean('with_comments')->default(true);
             // since_last_scan | today | all
             $table->string('post_window', 32)->default('since_last_scan');
             $table->timestamp('last_dispatched_at')->nullable();
-            $table->timestamp('paused_until')->nullable();
-            $table->string('pause_reason', 255)->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
         });

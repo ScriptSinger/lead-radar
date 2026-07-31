@@ -41,7 +41,7 @@ class DispatchVkGroupScansJob implements ShouldQueue
         $settings = ScanSetting::current();
         $limit = max(1, min(30, $this->limit ?? $settings->normalizedLimit()));
         $withComments = $this->withComments ?? (bool) $settings->with_comments;
-        $delaySeconds = $settings->effectiveGroupDelaySeconds();
+        $delaySeconds = $settings->normalizedGroupDelaySeconds();
         $trigger = $this->trigger ?: 'schedule';
 
         $query = VkGroup::query()

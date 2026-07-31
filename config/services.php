@@ -35,14 +35,6 @@ return [
         ],
     ],
 
-    'parser' => [
-        'url' => env('PARSER_URL', 'http://parser:3000'),
-        // Shared secret for the internal parser API. Required in production.
-        'service_token' => env('PARSER_SERVICE_TOKEN'),
-        // Comments with offset pagination can take >60s
-        'timeout' => (int) env('PARSER_TIMEOUT', 180),
-    ],
-
     'telegram' => [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
         'chat_id' => env('TELEGRAM_CHAT_ID'),
@@ -59,20 +51,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | VK scan — fallback defaults only
+    | VK API and scan defaults
     |--------------------------------------------------------------------------
     |
-    | Runtime policy lives in DB table scan_settings (MoonShine → Scan Settings)
-    | + ScanSettingSeeder. Env values below are legacy fallbacks for first boot
-    | before migrate/seed; the scheduler tick and jobs read ScanSetting::current().
-    |
-    | See docs/VK_RATE_LIMITS.md
+    | VK credentials stay server-side. Runtime scan policy lives in the
+    | scan_settings table and is edited in MoonShine.
     |
     */
     'vk' => [
-        // parser (legacy Playwright source) or api (official VK API source)
-        'content_source' => env('VK_CONTENT_SOURCE', 'parser'),
-        // Direct VK API access. Keep the service token on the server only.
+        // Keep the service token on the server only.
         'api_token' => env('VK_API_TOKEN'),
         'api_version' => env('VK_API_VERSION', '5.199'),
         'api_url' => env('VK_API_URL', 'https://api.vk.com/method'),
@@ -81,12 +68,6 @@ return [
         'scan_group_delay_seconds' => (int) env('VK_SCAN_GROUP_DELAY_SECONDS', 50),
         'scan_schedule' => env('VK_SCAN_SCHEDULE', 'db'), // db = scan_settings.interval_minutes
         'post_window' => env('VK_SCAN_POST_WINDOW', 'since_last_scan'),
-        // After N consecutive VK_CAPTCHA/LOGIN/BLOCKED job failures → pause auto schedule
-        'captcha_pause_threshold' => (int) env('VK_CAPTCHA_PAUSE_THRESHOLD', 3),
-        'captcha_pause_minutes' => (int) env('VK_CAPTCHA_PAUSE_MINUTES', 60),
-        // Use recent successful scan durations to prevent the next wave from
-        // enqueueing groups faster than the single Playwright parser can serve.
-        'adaptive_group_delay' => filter_var(env('VK_ADAPTIVE_GROUP_DELAY', true), FILTER_VALIDATE_BOOL),
     ],
 
 ];

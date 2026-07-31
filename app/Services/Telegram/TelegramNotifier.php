@@ -105,15 +105,11 @@ class TelegramNotifier
         ]);
     }
 
-    public function formatParserStatus(): array
+    public function formatScanStatus(): array
     {
         $settings = \App\Models\ScanSetting::current();
         $enabled = $settings->schedule_enabled;
         $status = $enabled ? '🟢 <b>Running</b>' : '🔴 <b>Stopped</b>';
-
-        if ($enabled && $settings->isCaptchaPaused()) {
-            $status = '🟠 <b>Paused (Captcha)</b>';
-        }
 
         $tz = config('app.timezone', 'UTC');
         
@@ -127,30 +123,21 @@ class TelegramNotifier
         $intervalStr = $settings->normalizedIntervalMinutes() . ' min';
         
         $text = implode("\n", [
-            '🤖 <b>Parser Control</b>',
+            '🤖 <b>Scan Control</b>',
             "Status: {$status}",
             '',
             "Interval: {$intervalStr}",
             "Last scan: <code>{$lastScanStr}</code>",
         ]);
 
-        if ($settings->isCaptchaPaused()) {
-            $pausedUntil = $settings->paused_until->timezone($tz);
-            $pausedDiff = $pausedUntil->locale('ru')->diffForHumans();
-            $text .= "\nPaused until: <code>" . $pausedUntil->format('H:i:s') . " ({$pausedDiff})</code>";
-            if ($settings->pause_reason) {
-                $text .= "\nReason: <code>" . e($settings->pause_reason) . "</code>";
-            }
-        }
-
         $buttons = [];
         if ($enabled) {
-            $buttons[] = [['text' => '⛔ Stop Parser', 'callback_data' => 'parser_stop']];
+            $buttons[] = [['text' => '⛔ Stop scans', 'callback_data' => 'scan_stop']];
         } else {
-            $buttons[] = [['text' => '🚀 Start Parser', 'callback_data' => 'parser_start']];
+            $buttons[] = [['text' => '🚀 Start scans', 'callback_data' => 'scan_start']];
         }
 
-        $buttons[] = [['text' => '🔄 Refresh', 'callback_data' => 'parser_refresh']];
+        $buttons[] = [['text' => '🔄 Refresh', 'callback_data' => 'scan_refresh']];
 
         return [
             'text' => $text,

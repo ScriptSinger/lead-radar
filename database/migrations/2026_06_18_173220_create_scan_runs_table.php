@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('group_id')->nullable()->constrained('vk_groups')->nullOnDelete();
             $table->string('trigger', 32)->default('manual'); // manual|schedule|job|admin
-            $table->string('status', 32)->default('running'); // running|success|failed|parser_down
+            $table->string('status', 32)->default('running'); // running|success|failed
             $table->boolean('with_comments')->default(false);
             $table->unsignedSmallInteger('limit')->default(6);
             $table->unsignedInteger('posts_fetched')->default(0);

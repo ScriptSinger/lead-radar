@@ -32,7 +32,7 @@ class VkScanGroup extends Command
         }
 
         if (! $contentSource->health()) {
-            $this->error('VK content source is unavailable: '.config('services.vk.content_source', 'parser'));
+            $this->error('VK API is unavailable. Check VK_API_TOKEN and network access.');
 
             return self::FAILURE;
         }

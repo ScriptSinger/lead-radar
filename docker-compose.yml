@@ -76,8 +76,8 @@ services:
     init: true
     security_opt:
       - no-new-privileges:true
-    # Wait for DB, then process queues. The selected content source performs
-    # its own health check, so the worker is independent of the legacy parser.
+    # Wait for DB, then process queues. The VK API source performs its own
+    # health check before a scan starts.
     # IMPORTANT: keep queue:work args on ONE logical line — bare newlines inside
     # sh -c end the command early (worker would listen only to "default").
     # Note: do not use `db:show` here — it may fail without php-intl even when DB is up.
@@ -137,41 +137,6 @@ services:
         echo 'scheduler: starting schedule:work';
         php artisan schedule:work --verbose
       "
-
-  parser:
-    image: mcr.microsoft.com/playwright:v1.61.0-jammy
-    user: "${UID}:${GID}"
-    working_dir: /app
-    env_file:
-      - .env
-    environment:
-      # VK session for logged-in scrapes (see parser/src/auth/login.js)
-      VK_LOGIN: "${VK_LOGIN:-}"
-      VK_PASSWORD: "${VK_PASSWORD:-}"
-      VK_SESSION_PATH: "${VK_SESSION_PATH:-/app/data/vk-storage-state.json}"
-      PARSER_SERVICE_TOKEN: "${PARSER_SERVICE_TOKEN}"
-      PARSER_REQUIRE_TOKEN: "${PARSER_REQUIRE_TOKEN:-false}"
-    volumes:
-    - ./parser:/app
-    # Persist session file even if data/ is wiped carefully
-    - ./parser/data:/app/data
-
-    networks:
-    - laravel
-
-    command: node src/index.js
-    restart: unless-stopped
-    init: true
-    security_opt:
-      - no-new-privileges:true
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - 'node -e "fetch(\"http://localhost:3000/health\", {headers:{Authorization: \"Bearer \" + process.env.PARSER_SERVICE_TOKEN}}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"'
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
 
 volumes:
   db_data:
