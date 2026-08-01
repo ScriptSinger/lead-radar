@@ -32,7 +32,7 @@ jobs:
         run: vendor/bin/pint --test
 
       - name: Run tests
-        run: composer run test
+        run: APP_KEY="base64:$(openssl rand -base64 32)" composer run test
         env:
           # The Composer test script clears config before PHPUnit loads phpunit.xml.
           APP_ENV: testing
