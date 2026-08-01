@@ -217,8 +217,14 @@ jobs:
                 --email "$letsencrypt_email" \
                 --agree-tos --non-interactive
             fi
-            install -m 644 ".acme/live/$webhook_ip/fullchain.pem" .tls/telegram-webhook.crt
-            install -m 600 ".acme/live/$webhook_ip/privkey.pem" .tls/telegram-webhook.key
+            docker run --rm \
+              -e WEBHOOK_IP="$webhook_ip" \
+              -v "$PWD/.acme:/etc/letsencrypt:ro" \
+              -v "$PWD/.tls:/tls" \
+              alpine:3.20 sh -ec '
+                install -m 644 "/etc/letsencrypt/live/$WEBHOOK_IP/fullchain.pem" /tls/telegram-webhook.crt
+                install -m 600 "/etc/letsencrypt/live/$WEBHOOK_IP/privkey.pem" /tls/telegram-webhook.key
+              '
             docker compose -f docker-compose.yml exec -T nginx nginx -s reload
             docker compose -f docker-compose.yml run --rm php php artisan telegram:setup-webhook
           EOF

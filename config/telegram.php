@@ -1,6 +1,10 @@
 <?php
 
+use GuzzleHttp\Client;
 use Telegram\Bot\Commands\HelpCommand;
+use Telegram\Bot\HttpClients\GuzzleHttpClient;
+
+$telegramProxyUrl = env('TELEGRAM_PROXY_URL');
 
 return [
     /*
@@ -84,7 +88,9 @@ return [
     | Default: GuzzlePHP
     |
     */
-    'http_client_handler' => null,
+    'http_client_handler' => $telegramProxyUrl
+        ? new GuzzleHttpClient(new Client(['proxy' => $telegramProxyUrl]))
+        : null,
 
     /*
     |--------------------------------------------------------------------------
