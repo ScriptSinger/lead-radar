@@ -33,6 +33,9 @@ jobs:
 
       - name: Run tests
         run: composer run test
+        env:
+          # The Composer test script clears config before PHPUnit loads phpunit.xml.
+          APP_ENV: testing
 
   build-artifact:
     runs-on: ubuntu-latest
