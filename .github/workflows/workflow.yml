@@ -169,6 +169,23 @@ jobs:
             docker info >/dev/null
 
             docker compose -f docker-compose.yml down
+            app_uid="$(id -u)"
+            app_gid="$(id -g)"
+            docker run --rm \
+              -e APP_UID="$app_uid" \
+              -e APP_GID="$app_gid" \
+              -v "$PWD:/var/www/html" \
+              alpine:3.20 sh -ec '
+                mkdir -p \
+                  storage/framework/cache/data \
+                  storage/framework/sessions \
+                  storage/framework/testing \
+                  storage/framework/views \
+                  storage/logs \
+                  bootstrap/cache
+                chown -R "$APP_UID:$APP_GID" storage bootstrap/cache
+                chmod -R ug+rwX storage bootstrap/cache
+              '
             docker compose -f docker-compose.yml up -d --build --remove-orphans
             # Wait for MySQL to be ready
             for i in {1..30}; do
