@@ -23,6 +23,10 @@ jobs:
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
+        env:
+          # Composer runs `artisan package:discover`; without .env Laravel
+          # defaults to production and rejects intentionally absent CI secrets.
+          APP_ENV: testing
 
       - name: Check code style
         run: vendor/bin/pint --test
@@ -47,6 +51,9 @@ jobs:
 
       - name: Install composer dependencies (no-dev)
         run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
+        env:
+          # The artifact is built before the production .env is placed on server.
+          APP_ENV: testing
 
       - name: Setup Node.js
         if: ${{ hashFiles('package.json') != '' }}
