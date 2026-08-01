@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Telegram\Bot\Laravel\Facades\Telegram;
 use Throwable;
 
-#[Signature('telegram:setup-webhook {--remove : Remove webhook} {--info : Show webhook info} {--from-ngrok : Resolve public URL via ngrok API}')]
+#[Signature('telegram:setup-webhook {--remove : Remove webhook} {--info : Show webhook info} {--from-ngrok : Resolve public URL via ngrok API} {--drop-pending : Drop pending updates while setting webhook}')]
 #[Description('Set / remove Telegram webhook (uses TELEGRAM_WEBHOOK_URL or ngrok)')]
 class TelegramWebhookCommand extends Command
 {
@@ -50,12 +50,28 @@ class TelegramWebhookCommand extends Command
 
         $params = [
             'url' => $url,
-            'drop_pending_updates' => true,
         ];
+
+        if ($this->option('drop-pending')) {
+            $params['drop_pending_updates'] = true;
+        }
 
         $secret = (string) config('services.telegram.webhook_secret', '');
         if ($secret !== '') {
             $params['secret_token'] = $secret;
+        }
+
+        $certificatePath = (string) config('telegram.bots.mybot.certificate_path', '');
+        if ($certificatePath !== '') {
+            if (! is_readable($certificatePath)) {
+                $this->error("Telegram certificate is not readable: {$certificatePath}");
+
+                return self::FAILURE;
+            }
+
+            // Telegram requires the public certificate to be uploaded for a
+            // self-signed HTTPS endpoint.
+            $params['certificate'] = $certificatePath;
         }
 
         try {

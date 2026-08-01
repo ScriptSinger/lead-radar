@@ -123,7 +123,7 @@ jobs:
         run: |
           scp -i ~/.ssh/id_ed25519 release.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/release.tar.gz
 
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -se' << 'EOF'
 
             cd ~/lead-radar
 
@@ -131,19 +131,48 @@ jobs:
 
             echo "${{ secrets.ENV_FILE }}" > .env
 
-            docker compose down
-            docker compose up -d --build --remove-orphans
+            webhook_url="$(sed -n 's/^TELEGRAM_WEBHOOK_URL=//p' .env | head -n 1 | tr -d '\r')"
+            webhook_ip="${webhook_url#https://}"
+            webhook_ip="${webhook_ip%%/*}"
+            webhook_ip="${webhook_ip%%:*}"
+            if ! [[ "$webhook_url" =~ ^https://[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(/|$) ]]; then
+              echo 'TELEGRAM_WEBHOOK_URL must be an HTTPS URL with a public IPv4 address.' >&2
+              exit 1
+            fi
+
+            mkdir -p .tls
+            if [ ! -s .tls/telegram-webhook.crt ] || [ ! -s .tls/telegram-webhook.key ] \
+              || ! openssl x509 -in .tls/telegram-webhook.crt -noout -ext subjectAltName \
+                | grep -Fq "IP Address:$webhook_ip"; then
+              openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 3650 \
+                -keyout .tls/telegram-webhook.key \
+                -out .tls/telegram-webhook.crt \
+                -subj "/CN=$webhook_ip" \
+                -addext "subjectAltName=IP:$webhook_ip"
+              chmod 600 .tls/telegram-webhook.key
+            fi
+
+            command -v docker >/dev/null || {
+              echo 'Docker is not installed or is not in PATH for the deploy user.' >&2
+              exit 127
+            }
+            docker compose -f docker-compose.yml version >/dev/null
+            docker info >/dev/null
+
+            docker compose -f docker-compose.yml down
+            docker compose -f docker-compose.yml up -d --build --remove-orphans
             # Wait for MySQL to be ready
             for i in {1..30}; do
-              if docker compose exec -T mysql sh -lc 'mysqladmin ping -h localhost -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent'; then
+              if docker compose -f docker-compose.yml exec -T mysql sh -lc 'mysqladmin ping -h localhost -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent'; then
                 break
               fi
               sleep 2
             done
-            docker compose exec -T mysql sh -lc 'mysqladmin ping -h localhost -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent'
-            docker compose run --rm php php artisan migrate --force
-            docker compose run --rm php php artisan route:clear
-            docker compose run --rm php php artisan view:clear
-            docker compose run --rm php php artisan optimize
-            docker compose run --rm php php artisan sitemap:generate
+            docker compose -f docker-compose.yml exec -T mysql sh -lc 'mysqladmin ping -h localhost -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent'
+            docker compose -f docker-compose.yml run --rm php php artisan migrate --force
+            docker compose -f docker-compose.yml run --rm php php artisan route:clear
+            docker compose -f docker-compose.yml run --rm php php artisan view:clear
+            docker compose -f docker-compose.yml run --rm php php artisan optimize
+            docker compose -f docker-compose.yml run --rm php php artisan sitemap:generate
+            docker compose -f docker-compose.yml run --rm php php artisan telegram:setup-webhook
           EOF
