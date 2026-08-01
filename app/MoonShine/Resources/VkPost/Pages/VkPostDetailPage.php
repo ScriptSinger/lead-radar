@@ -7,6 +7,7 @@ namespace App\MoonShine\Resources\VkPost\Pages;
 use App\Models\VkPost;
 use App\MoonShine\Components\PostCommentsTree;
 use App\MoonShine\Resources\VkPost\VkPostResource;
+use MoonShine\Contracts\UI\ComponentContract;
 use MoonShine\Laravel\Pages\Crud\DetailPage;
 use MoonShine\UI\Components\Layout\Box;
 use MoonShine\UI\Components\Layout\LineBreak;
@@ -21,7 +22,8 @@ use Throwable;
 class VkPostDetailPage extends DetailPage
 {
     /**
-     * @return list<\MoonShine\Contracts\UI\ComponentContract>
+     * @return list<ComponentContract>
+     *
      * @throws Throwable
      */
     protected function bottomLayer(): array

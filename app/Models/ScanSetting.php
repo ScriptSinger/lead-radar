@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\PostWindow;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -143,7 +144,7 @@ class ScanSetting extends Model
             return false;
         }
 
-        $now = $now ? \Carbon\Carbon::parse($now) : now();
+        $now = $now ? Carbon::parse($now) : now();
 
         if ($this->last_dispatched_at === null) {
             return true;

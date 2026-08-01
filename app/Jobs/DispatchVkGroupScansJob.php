@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\ScanSetting;
 use App\Models\VkGroup;
+use App\Support\VkUrl;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -58,7 +59,7 @@ class DispatchVkGroupScansJob implements ShouldQueue
         $skipped = 0;
 
         foreach ($groups as $group) {
-            if (! \App\Support\VkUrl::isValid($group->url)) {
+            if (! VkUrl::isValid($group->url)) {
                 Log::warning('vk.scan.dispatch.invalid_url', [
                     'group_id' => $group->id,
                     'url' => $group->url,

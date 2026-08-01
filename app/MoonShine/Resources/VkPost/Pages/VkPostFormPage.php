@@ -12,6 +12,4 @@ use MoonShine\Laravel\Pages\Crud\FormPage;
  *
  * @extends FormPage<VkPostResource>
  */
-class VkPostFormPage extends FormPage
-{
-}
+class VkPostFormPage extends FormPage {}

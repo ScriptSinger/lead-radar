@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\MoonShine\Resources\VkGroup;
 
 use App\Jobs\ScanVkGroupJob;
+use App\Models\ScanSetting;
 use App\Models\VkGroup;
 use App\MoonShine\Resources\VkGroup\Pages\VkGroupDetailPage;
 use App\MoonShine\Resources\VkGroup\Pages\VkGroupFormPage;
 use App\MoonShine\Resources\VkGroup\Pages\VkGroupIndexPage;
+use App\Support\VkUrl;
 use MoonShine\Contracts\Core\PageContract;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\Support\Attributes\AsyncMethod;
@@ -116,12 +118,12 @@ class VkGroupResource extends ModelResource
             return;
         }
 
-        $settings = \App\Models\ScanSetting::current();
+        $settings = ScanSetting::current();
         $limit = $settings->normalizedLimit();
         $withComments = (bool) $settings->with_comments;
 
-        if (! \App\Support\VkUrl::isValid($group->url)) {
-            toast(\App\Support\VkUrl::validationMessage(), ToastType::ERROR);
+        if (! VkUrl::isValid($group->url)) {
+            toast(VkUrl::validationMessage(), ToastType::ERROR);
 
             return;
         }

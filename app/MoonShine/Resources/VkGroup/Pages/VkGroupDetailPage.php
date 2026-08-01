@@ -10,6 +10,4 @@ use MoonShine\Laravel\Pages\Crud\DetailPage;
 /**
  * @extends DetailPage<VkGroupResource>
  */
-class VkGroupDetailPage extends DetailPage
-{
-}
+class VkGroupDetailPage extends DetailPage {}

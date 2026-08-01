@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
  * Rematch all stored posts/comments against current keywords.
  * Unique so rapid keyword edits collapse into one job.
  */
-class RematchLeadsJob implements ShouldQueue, ShouldBeUnique
+class RematchLeadsJob implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
 

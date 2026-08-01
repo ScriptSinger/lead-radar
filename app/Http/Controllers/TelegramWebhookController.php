@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ScanSetting;
 use App\Services\Telegram\TelegramNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -73,7 +74,7 @@ class TelegramWebhookController extends Controller
             return response()->json(['ok' => true]);
         }
 
-        $settings = \App\Models\ScanSetting::current();
+        $settings = ScanSetting::current();
 
         try {
             if ($data === 'scan_start') {

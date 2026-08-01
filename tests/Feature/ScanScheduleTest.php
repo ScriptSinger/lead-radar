@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\DispatchVkGroupScansJob;
+use App\Jobs\ScanVkGroupJob;
 use App\Models\ScanSetting;
 use App\Models\VkGroup;
 use App\Services\Vk\ScanSchedule;
@@ -138,10 +139,10 @@ class ScanScheduleTest extends TestCase
 
         // Push ScanVkGroupJob through real dispatch (not faked for nested?)
         // Queue is faked so assertPushed on ScanVkGroupJob
-        (new \App\Jobs\DispatchVkGroupScansJob)->handle();
+        (new DispatchVkGroupScansJob)->handle();
 
-        Queue::assertPushed(\App\Jobs\ScanVkGroupJob::class, 2);
-        Queue::assertPushed(\App\Jobs\ScanVkGroupJob::class, function (\App\Jobs\ScanVkGroupJob $job) {
+        Queue::assertPushed(ScanVkGroupJob::class, 2);
+        Queue::assertPushed(ScanVkGroupJob::class, function (ScanVkGroupJob $job) {
             return $job->limit === 5 && $job->withComments === false;
         });
     }

@@ -7,22 +7,46 @@ on:
       - ci-test
 
 jobs:
-  build-artifact:
+  test:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.2
-          extensions: mbstring, pdo, bcmath
+          php-version: 8.4
+          extensions: mbstring, bcmath, pdo_sqlite
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Check code style
+        run: vendor/bin/pint --test
+
+      - name: Run tests
+        run: composer run test
+
+  build-artifact:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          extensions: mbstring, bcmath
           tools: composer:v2
 
       - name: Install composer dependencies (no-dev)
-        run: composer install --no-dev --prefer-dist --optimize-autoloader
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
 
       - name: Setup Node.js
         if: ${{ hashFiles('package.json') != '' }}
@@ -38,7 +62,7 @@ jobs:
       - name: Build frontend
         run: |
           if [ -f package.json ]; then
-            npm run prod
+            npm run build
           fi
 
       - name: Create artifact
@@ -53,7 +77,8 @@ jobs:
             public \
             resources \
             routes \
-           .env.example \
+            vendor \
+            .env.example \
             artisan \
             composer.json \
             composer.lock \
@@ -88,7 +113,7 @@ jobs:
         run: |
           scp -i ~/.ssh/id_ed25519 release.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/release.tar.gz
 
-          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
 
             cd ~/lead-radar
 
@@ -97,14 +122,15 @@ jobs:
             echo "${{ secrets.ENV_FILE }}" > .env
 
             docker compose down
-            docker compose up -d --build
+            docker compose up -d --build --remove-orphans
             # Wait for MySQL to be ready
             for i in {1..30}; do
-              if docker compose exec -T mysql mysqladmin ping -h "localhost" -u"${DB_USERNAME}" -p"${DB_PASSWORD}" --silent; then
+              if docker compose exec -T mysql sh -lc 'mysqladmin ping -h localhost -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent'; then
                 break
               fi
               sleep 2
             done
+            docker compose exec -T mysql sh -lc 'mysqladmin ping -h localhost -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent'
             docker compose run --rm php php artisan migrate --force
             docker compose run --rm php php artisan route:clear
             docker compose run --rm php php artisan view:clear

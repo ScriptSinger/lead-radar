@@ -186,7 +186,7 @@ class LeadResource extends ModelResource
     }
 
     /**
-     * @return list<\MoonShine\Laravel\QueryTags\QueryTag>
+     * @return list<QueryTag>
      */
     protected function queryTags(): array
     {

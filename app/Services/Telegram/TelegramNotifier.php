@@ -3,6 +3,9 @@
 namespace App\Services\Telegram;
 
 use App\Models\Lead;
+use App\Models\ScanSetting;
+use App\Models\VkGroup;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Telegram\Bot\Api;
@@ -107,21 +110,21 @@ class TelegramNotifier
 
     public function formatScanStatus(): array
     {
-        $settings = \App\Models\ScanSetting::current();
+        $settings = ScanSetting::current();
         $enabled = $settings->schedule_enabled;
         $status = $enabled ? '🟢 <b>Running</b>' : '🔴 <b>Stopped</b>';
 
         $tz = config('app.timezone', 'UTC');
-        
+
         $lastScanStr = 'never';
         if ($settings->last_dispatched_at) {
             $lastTime = $settings->last_dispatched_at->timezone($tz);
             $diff = $lastTime->locale('ru')->diffForHumans();
-            $lastScanStr = $lastTime->format('H:i:s') . ' (' . $diff . ')';
+            $lastScanStr = $lastTime->format('H:i:s').' ('.$diff.')';
         }
 
-        $intervalStr = $settings->normalizedIntervalMinutes() . ' min';
-        
+        $intervalStr = $settings->normalizedIntervalMinutes().' min';
+
         $text = implode("\n", [
             '🤖 <b>Scan Control</b>',
             "Status: {$status}",
@@ -194,7 +197,7 @@ class TelegramNotifier
 
         if (filled($url)) {
             $lines[] = '';
-            $lines[] = "🔗 <a href=\"".e($url)."\">Open in VK</a>";
+            $lines[] = '🔗 <a href="'.e($url).'">Open in VK</a>';
         }
 
         $lines[] = '';
@@ -205,15 +208,15 @@ class TelegramNotifier
 
     public function formatStats(): string
     {
-        $new = \App\Models\Lead::query()->where('status', 'new')->count();
-        $processed = \App\Models\Lead::query()->where('status', 'processed')->count();
-        $ignored = \App\Models\Lead::query()->where('status', 'ignored')->count();
-        $groups = \App\Models\VkGroup::query()->where('active', true)->count();
-        $lastScan = \App\Models\VkGroup::query()->whereNotNull('last_scan_at')->max('last_scan_at');
+        $new = Lead::query()->where('status', 'new')->count();
+        $processed = Lead::query()->where('status', 'processed')->count();
+        $ignored = Lead::query()->where('status', 'ignored')->count();
+        $groups = VkGroup::query()->where('active', true)->count();
+        $lastScan = VkGroup::query()->whereNotNull('last_scan_at')->max('last_scan_at');
         $muted = $this->isMuted() ? 'yes' : 'no';
 
         $last = $lastScan
-            ? \Carbon\Carbon::parse($lastScan)->format('Y-m-d H:i')
+            ? Carbon::parse($lastScan)->format('Y-m-d H:i')
             : 'never';
 
         return implode("\n", [
@@ -232,7 +235,7 @@ class TelegramNotifier
      */
     public function latestNewLeads(int $limit = 5): array
     {
-        return \App\Models\Lead::query()
+        return Lead::query()
             ->with(['keyword', 'group'])
             ->where('status', 'new')
             ->orderByDesc('id')

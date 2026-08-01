@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\DispatchVkGroupScansJob;
 use App\Jobs\ScanVkGroupJob;
+use App\Models\ScanSetting;
 use App\Models\VkGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -16,13 +17,13 @@ class DispatchVkGroupScansJobTest extends TestCase
     public function test_dispatches_active_groups_with_valid_urls_and_skips_invalid(): void
     {
         Queue::fake();
-        \App\Models\ScanSetting::forgetCache();
+        ScanSetting::forgetCache();
 
-        \App\Models\ScanSetting::current()->forceFill([
+        ScanSetting::current()->forceFill([
             'group_delay_seconds' => 10,
             'scan_limit' => 6,
         ])->save();
-        \App\Models\ScanSetting::forgetCache();
+        ScanSetting::forgetCache();
 
         $good = VkGroup::query()->create([
             'name' => 'Good',
@@ -50,5 +51,4 @@ class DispatchVkGroupScansJobTest extends TestCase
                 && $job->trigger === 'test';
         });
     }
-
 }
