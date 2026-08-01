@@ -4,6 +4,8 @@
 .env.backup
 .env.production
 /.tls
+/.acme
+/.acme-challenge
 .phpactor.json
 .phpunit.result.cache
 /.codex

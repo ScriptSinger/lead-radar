@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - ci-test
+  schedule:
+    # IP certificates are short-lived; renew them well before their six-day expiry.
+    - cron: '17 3 * * *'
 
 jobs:
   test:
@@ -139,8 +142,14 @@ jobs:
               echo 'TELEGRAM_WEBHOOK_URL must be an HTTPS URL with a public IPv4 address.' >&2
               exit 1
             fi
+            letsencrypt_email="$(sed -n 's/^LETSENCRYPT_EMAIL=//p' .env | head -n 1 | tr -d '\r')"
+            if [ -z "$letsencrypt_email" ]; then
+              echo "LETSENCRYPT_EMAIL must be configured for Let's Encrypt certificate renewal." >&2
+              exit 1
+            fi
 
             mkdir -p .tls
+            mkdir -p .acme .acme-challenge
             if [ ! -s .tls/telegram-webhook.crt ] || [ ! -s .tls/telegram-webhook.key ] \
               || ! openssl x509 -in .tls/telegram-webhook.crt -noout -ext subjectAltName \
                 | grep -Fq "IP Address:$webhook_ip"; then
@@ -174,5 +183,25 @@ jobs:
             docker compose -f docker-compose.yml run --rm php php artisan view:clear
             docker compose -f docker-compose.yml run --rm php php artisan optimize
             docker compose -f docker-compose.yml run --rm php php artisan sitemap:generate
+
+            if [ -s ".acme/live/$webhook_ip/fullchain.pem" ]; then
+              docker run --rm \
+                -v "$PWD/.acme:/etc/letsencrypt" \
+                -v "$PWD/.acme-challenge:/var/www/certbot" \
+                certbot/certbot:v5.4.0 renew --quiet
+            else
+              docker run --rm \
+                -v "$PWD/.acme:/etc/letsencrypt" \
+                -v "$PWD/.acme-challenge:/var/www/certbot" \
+                certbot/certbot:v5.4.0 certonly --webroot \
+                --webroot-path /var/www/certbot \
+                --ip-address "$webhook_ip" \
+                --preferred-profile shortlived \
+                --email "$letsencrypt_email" \
+                --agree-tos --non-interactive
+            fi
+            install -m 644 ".acme/live/$webhook_ip/fullchain.pem" .tls/telegram-webhook.crt
+            install -m 600 ".acme/live/$webhook_ip/privkey.pem" .tls/telegram-webhook.key
+            docker compose -f docker-compose.yml exec -T nginx nginx -s reload
             docker compose -f docker-compose.yml run --rm php php artisan telegram:setup-webhook
           EOF
