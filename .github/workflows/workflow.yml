@@ -90,6 +90,7 @@ jobs:
             public \
             resources \
             routes \
+            storage \
             vendor \
             .env.example \
             artisan \
