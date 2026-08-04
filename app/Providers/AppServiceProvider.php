@@ -9,6 +9,7 @@ use App\Modules\VkApi\VkApiContentSource;
 use App\Observers\KeywordObserver;
 use App\Observers\LeadObserver;
 use App\Services\Telegram\TelegramNotifier;
+use App\Services\Telegram\TelegramMtprotoClient;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -30,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TelegramNotifier::class, function ($app) {
             return new TelegramNotifier($app->make(Api::class));
         });
+
+        $this->app->singleton(TelegramMtprotoClient::class);
     }
 
     /**
