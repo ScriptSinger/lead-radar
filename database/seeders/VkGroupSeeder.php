@@ -150,6 +150,48 @@ class VkGroupSeeder extends Seeder
                 'url' => 'https://m.vk.ru/gkakva',
                 'active' => true,
             ],
+            [
+                'name' => 'Семейный квартал «Черника», г.Уфа (ЖК «Черника»)',
+                'url' => 'https://vk.ru/chernikaufa',
+                'active' => true,
+            ],
+
+            // === Халтура ===
+            [
+                'name' => 'Халтура Уфа Шабашка Работа Подработка',
+                'url' => 'https://vk.ru/haltura_yfa1',
+                'active' => true,
+            ],
+            [
+                'name' => 'Халтура Уфа | Подработка в Уфе | Работа',
+                'url' => 'https://vk.ru/halturaaa',
+                'active' => true,
+            ],
+            [
+                'name' => 'Работа в Уфе| Подработка в Уфе| Халтура в Уфе',
+                'url' => 'https://vk.ru/ufa_podrabotka',
+                'active' => true,
+            ],
+            [
+                'name' => 'ХАЛТУРА, ШАБАШКА, ПОДРАБОТКА, РАБОТА УФА',
+                'url' => 'https://vk.ru/halturaufa02',
+                'active' => true,
+            ],
+            [
+                'name' => 'Халтура Уфа| Подработка в Уфе| Ежедневная оплата',
+                'url' => 'https://vk.ru/halturaufa',
+                'active' => true,
+            ],
+            [
+                'name' => 'ХАЛТУРА УФА -Работа в Уфе- Ежедневная оплата',
+                'url' => 'https://vk.ru/haltura24_ufa',
+                'active' => true,
+            ],
+            [
+                'name' => 'Халтура Уфа| Подработка в Уфе| Ежедневная оплата',
+                'url' => 'https://vk.ru/c1xnhs',
+                'active' => true,
+            ],
         ];
 
         foreach ($groups as $group) {
