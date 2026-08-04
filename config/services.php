@@ -38,6 +38,12 @@ return [
     'telegram' => [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
         'chat_id' => env('TELEGRAM_CHAT_ID'),
+        // MTProto user API credentials used for reading Telegram channels.
+        // These credentials must never be exposed to the browser.
+        'api_id' => env('TELEGRAM_API_ID'),
+        'api_hash' => env('TELEGRAM_API_HASH'),
+        'phone_number' => env('TELEGRAM_PHONE_NUMBER'),
+        'session_path' => env('TELEGRAM_SESSION_PATH', 'storage/app/telegram.session'),
         // Comma-separated chat ids allowed for bot commands (empty = only chat_id)
         'allowed_chat_ids' => array_values(array_filter(array_map(
             'trim',
