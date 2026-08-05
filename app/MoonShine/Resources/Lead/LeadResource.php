@@ -77,6 +77,10 @@ class LeadResource extends ModelResource
                 'post' => 'Post',
                 'comment' => 'Comment',
             ])->sortable(),
+            Select::make('Platform', 'platform')->options([
+                'vk' => 'VK',
+                'telegram' => 'Telegram',
+            ])->sortable(),
             BelongsTo::make(
                 'Keyword',
                 'keyword',
@@ -169,6 +173,10 @@ class LeadResource extends ModelResource
             Select::make('Source', 'source_type')->options([
                 'post' => 'Post',
                 'comment' => 'Comment',
+            ])->nullable(),
+            Select::make('Platform', 'platform')->options([
+                'vk' => 'VK',
+                'telegram' => 'Telegram',
             ])->nullable(),
             BelongsTo::make(
                 'Group',
