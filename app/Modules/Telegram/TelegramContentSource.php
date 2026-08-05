@@ -102,7 +102,8 @@ class TelegramContentSource
     }
 
     /** @return array<string, mixed>|null */
-    private function normalizeMessage(array $message, string $username): ?array
+    /** @return array<string, mixed>|null */
+    public function normalizeMessage(array $message, string $username): ?array
     {
         $messageId = (int) ($message['id'] ?? 0);
         $timestamp = (int) ($message['date'] ?? 0);
