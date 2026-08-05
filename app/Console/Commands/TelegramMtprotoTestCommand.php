@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use danog\MadelineProto\API;
 use App\Services\Telegram\TelegramMtprotoClient;
+use danog\MadelineProto\API;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

@@ -1,7 +1,7 @@
 <?php
 
-use App\Services\Vk\ScanSchedule;
 use App\Services\Telegram\TelegramScanSchedule;
+use App\Services\Vk\ScanSchedule;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;

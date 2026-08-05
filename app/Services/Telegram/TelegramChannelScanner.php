@@ -104,6 +104,7 @@ class TelegramChannelScanner
 
         if ($post) {
             $post->fill($attributes)->save();
+
             return [$post, false];
         }
 

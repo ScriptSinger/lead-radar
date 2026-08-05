@@ -122,12 +122,19 @@ class LeadMatcher
     {
         $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0];
         $text = (string) ($post->text ?? '');
-        if (trim($text) === '') return $stats;
+        if (trim($text) === '') {
+            return $stats;
+        }
         foreach ($this->keywordsFor('post') as $keyword) {
-            if (! $this->matchesKeyword($text, $keyword)) { $stats['skipped']++; continue; }
+            if (! $this->matchesKeyword($text, $keyword)) {
+                $stats['skipped']++;
+
+                continue;
+            }
             $created = $this->upsertTelegramLead($keyword, $post, $text);
             $created ? $stats['created']++ : $stats['updated']++;
         }
+
         return $stats;
     }
 
@@ -304,11 +311,15 @@ class LeadMatcher
         ];
         try {
             Lead::query()->create([...$attributes, 'dedupe_key' => $key, 'status' => 'new']);
+
             return true;
         } catch (QueryException $e) {
-            if (! $this->isDuplicateKey($e)) throw $e;
+            if (! $this->isDuplicateKey($e)) {
+                throw $e;
+            }
         }
         Lead::query()->where('dedupe_key', $key)->firstOrFail()->fill($attributes)->save();
+
         return false;
     }
 

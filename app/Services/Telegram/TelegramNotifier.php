@@ -4,8 +4,8 @@ namespace App\Services\Telegram;
 
 use App\Models\Lead;
 use App\Models\ScanSetting;
-use App\Models\VkGroup;
 use App\Models\TelegramChannel;
+use App\Models\VkGroup;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
