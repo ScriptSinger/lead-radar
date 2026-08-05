@@ -3,10 +3,12 @@
 namespace App\Modules\Telegram;
 
 use App\Models\TelegramChannel;
+use App\Models\TelegramPost;
 use App\Services\Telegram\TelegramMtprotoClient;
 use App\Support\TelegramChannelUrl;
 use Carbon\CarbonImmutable;
 use danog\MadelineProto\API;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /** Read-only MTProto source for posts in public broadcast channels. */
@@ -71,6 +73,44 @@ class TelegramContentSource
         $username = $channel->username ?: TelegramChannelUrl::username($channel->url);
 
         return $this->fetchPostsByUsername($username, $limit);
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function fetchComments(TelegramPost $post, int $limit = 100): array
+    {
+        $client = $this->authorizedClient();
+        $username = $post->channel->username;
+        if (! $username) {
+            return [];
+        }
+        try {
+            $discussion = $client->messages->getDiscussionMessage(peer: '@'.$username, msg_id: $post->telegram_message_id);
+            $root = $discussion['messages'][0] ?? null;
+            $peer = $discussion['chats'][0] ?? null;
+            if (! is_array($root) || ! is_array($peer)) {
+                return [];
+            }
+            $replies = $client->messages->getReplies(peer: $peer, msg_id: (int) $root['id'], limit: max(1, min(100, $limit)));
+        } catch (Throwable $e) {
+            // Comments are optional per post. A channel may have discussions
+            // disabled, or a particular post may not have a linked thread.
+            Log::info('telegram.comments.unavailable', [
+                'post_id' => $post->id,
+                'telegram_message_id' => $post->telegram_message_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+
+        return array_values(array_filter(array_map(function ($m) {
+            if (! is_array($m) || ($m['_'] ?? null) !== 'message' || empty($m['id'])) {
+                return null;
+            }
+            $from = $m['from_id'] ?? null;
+
+            return ['telegram_message_id' => (int) $m['id'], 'parent_telegram_message_id' => isset($m['reply_to']['reply_to_msg_id']) ? (int) $m['reply_to']['reply_to_msg_id'] : null, 'text' => (string) ($m['message'] ?? ''), 'author_telegram_id' => is_array($from) && isset($from['user_id']) ? (int) $from['user_id'] : null, 'posted_at' => CarbonImmutable::createFromTimestampUTC((int) $m['date'])];
+        }, $replies['messages'] ?? [])));
     }
 
     /** @return list<array<string, mixed>> */

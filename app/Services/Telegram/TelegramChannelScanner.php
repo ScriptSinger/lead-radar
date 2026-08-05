@@ -5,6 +5,7 @@ namespace App\Services\Telegram;
 use App\Models\TelegramChannel;
 use App\Models\TelegramPost;
 use App\Models\TelegramScanRun;
+use App\Models\TelegramComment;
 use App\Modules\Telegram\TelegramContentSource;
 use App\Services\LeadMatcher;
 use Carbon\CarbonInterface;
@@ -17,6 +18,7 @@ class TelegramChannelScanner
     public function __construct(
         private readonly TelegramContentSource $source,
         private readonly LeadMatcher $leadMatcher,
+        private readonly TelegramCommentTreeResolver $treeResolver,
     ) {}
 
     /** @return array<string, mixed> */
@@ -59,6 +61,13 @@ class TelegramChannelScanner
                 $matched = $this->leadMatcher->matchTelegramPost($post);
                 $stats['leads_created'] += $matched['created'];
                 $stats['leads_updated'] += $matched['updated'];
+                foreach ($this->source->fetchComments($post) as $rawComment) {
+                    $comment=TelegramComment::query()->updateOrCreate(['post_id'=>$post->id,'telegram_message_id'=>$rawComment['telegram_message_id']],$rawComment);
+                    $matched=$this->leadMatcher->matchTelegramComment($comment);
+                    $stats['leads_created'] += $matched['created'];
+                    $stats['leads_updated'] += $matched['updated'];
+                }
+                $this->treeResolver->resolveForPost($post);
             }
 
             if ($stats['posts_fetched'] > 0) {

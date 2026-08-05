@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TelegramPost extends Model
 {
@@ -42,4 +43,5 @@ class TelegramPost extends Model
     {
         return $this->belongsTo(TelegramChannel::class, 'channel_id');
     }
+    public function comments(): HasMany { return $this->hasMany(TelegramComment::class, 'post_id'); }
 }

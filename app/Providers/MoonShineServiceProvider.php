@@ -11,6 +11,7 @@ use App\MoonShine\Resources\MoonShineUserRole\MoonShineUserRoleResource;
 use App\MoonShine\Resources\ScanRun\ScanRunResource;
 use App\MoonShine\Resources\ScanSetting\ScanSettingResource;
 use App\MoonShine\Resources\TelegramChannelResource;
+use App\MoonShine\Resources\TelegramCommentResource;
 use App\MoonShine\Resources\TelegramPostResource;
 use App\MoonShine\Resources\TelegramScanRunResource;
 use App\MoonShine\Resources\VkComment\VkCommentResource;
@@ -35,6 +36,7 @@ class MoonShineServiceProvider extends ServiceProvider
                 VkPostResource::class,
                 VkCommentResource::class,
                 TelegramChannelResource::class,
+                TelegramCommentResource::class,
                 TelegramPostResource::class,
                 TelegramScanRunResource::class,
                 KeywordResource::class,

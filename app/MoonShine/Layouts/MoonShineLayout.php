@@ -9,6 +9,7 @@ use App\MoonShine\Resources\Lead\LeadResource;
 use App\MoonShine\Resources\ScanRun\ScanRunResource;
 use App\MoonShine\Resources\ScanSetting\ScanSettingResource;
 use App\MoonShine\Resources\TelegramChannelResource;
+use App\MoonShine\Resources\TelegramCommentResource;
 use App\MoonShine\Resources\TelegramPostResource;
 use App\MoonShine\Resources\TelegramScanRunResource;
 use App\MoonShine\Resources\VkGroup\VkGroupResource;
@@ -55,6 +56,7 @@ final class MoonShineLayout extends AppLayout
             MenuGroup::make('Telegram', [
                 MenuItem::make(TelegramChannelResource::class, 'Channels'),
                 MenuItem::make(TelegramPostResource::class, 'Posts'),
+                MenuItem::make(TelegramCommentResource::class, 'Comments'),
                 MenuItem::make(TelegramScanRunResource::class, 'Scan Runs'),
             ], 'paper-airplane'),
 

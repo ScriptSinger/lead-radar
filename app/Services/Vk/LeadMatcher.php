@@ -5,6 +5,7 @@ namespace App\Services\Vk;
 use App\Models\Keyword;
 use App\Models\Lead;
 use App\Models\TelegramPost;
+use App\Models\TelegramComment;
 use App\Models\VkComment;
 use App\Models\VkPost;
 use Illuminate\Database\QueryException;
@@ -136,6 +137,19 @@ class LeadMatcher
         }
 
         return $stats;
+    }
+
+    public function matchTelegramComment(TelegramComment $comment): array
+    {
+        $stats=['created'=>0,'updated'=>0,'skipped'=>0]; $text=(string)$comment->text;
+        if(trim($text)==='') return $stats; $comment->loadMissing('post'); $post=$comment->post; if(!$post) return $stats;
+        foreach($this->keywordsFor('comment') as $keyword){
+            if(!$this->matchesKeyword($text,$keyword)){ $stats['skipped']++; continue; }
+            $key="telegram:c:{$comment->id}:k:{$keyword->id}";
+            $attributes=['platform'=>'telegram','source_entity_type'=>'comment','source_entity_id'=>$comment->id,'channel_or_group_id'=>$post->channel_id,'source_type'=>'comment','post_id'=>null,'comment_id'=>null,'group_id'=>null,'keyword_id'=>$keyword->id,'text'=>$text,'url'=>$post->url,'score'=>$this->scoreFor($keyword)];
+            try { Lead::query()->create([...$attributes,'dedupe_key'=>$key,'status'=>'new']); $stats['created']++; }
+            catch(QueryException $e){ if(!$this->isDuplicateKey($e)) throw $e; Lead::query()->where('dedupe_key',$key)->firstOrFail()->fill($attributes)->save(); $stats['updated']++; }
+        } return $stats;
     }
 
     /**
