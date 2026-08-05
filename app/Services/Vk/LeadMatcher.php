@@ -4,6 +4,7 @@ namespace App\Services\Vk;
 
 use App\Models\Keyword;
 use App\Models\Lead;
+use App\Models\TelegramPost;
 use App\Models\VkComment;
 use App\Models\VkPost;
 use Illuminate\Database\QueryException;
@@ -116,6 +117,20 @@ class LeadMatcher
         return $stats;
     }
 
+    /** Match a Telegram channel post using the same keyword rules as VK. */
+    public function matchTelegramPost(TelegramPost $post): array
+    {
+        $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0];
+        $text = (string) ($post->text ?? '');
+        if (trim($text) === '') return $stats;
+        foreach ($this->keywordsFor('post') as $keyword) {
+            if (! $this->matchesKeyword($text, $keyword)) { $stats['skipped']++; continue; }
+            $created = $this->upsertTelegramLead($keyword, $post, $text);
+            $created ? $stats['created']++ : $stats['updated']++;
+        }
+        return $stats;
+    }
+
     /**
      * Match a batch of posts (and optionally their comments already in DB).
      *
@@ -191,8 +206,11 @@ class LeadMatcher
         return $value;
     }
 
-    public function dedupeKey(string $sourceType, int $keywordId, int $postId, ?int $commentId): string
+    public function dedupeKey(string $sourceType, int $keywordId, int $postId, ?int $commentId, string $platform = 'vk'): string
     {
+        if ($platform === 'telegram') {
+            return "telegram:p:{$postId}:k:{$keywordId}";
+        }
         if ($sourceType === 'comment' && $commentId !== null) {
             return "c:{$commentId}:k:{$keywordId}";
         }
@@ -226,6 +244,10 @@ class LeadMatcher
         $key = $this->dedupeKey($sourceType, (int) $keyword->id, (int) $post->id, $commentId);
 
         $attributes = [
+            'platform' => 'vk',
+            'source_entity_type' => $sourceType,
+            'source_entity_id' => $commentId ?? $post->id,
+            'channel_or_group_id' => $groupId,
             'source_type' => $sourceType,
             'post_id' => $post->id,
             'comment_id' => $commentId,
@@ -264,6 +286,29 @@ class LeadMatcher
             'group_id' => $groupId,
         ])->save();
 
+        return false;
+    }
+
+    private function upsertTelegramLead(Keyword $keyword, TelegramPost $post, string $text): bool
+    {
+        $key = $this->dedupeKey('post', (int) $keyword->id, (int) $post->id, null, 'telegram');
+        $attributes = [
+            'platform' => 'telegram',
+            'source_entity_type' => 'post',
+            'source_entity_id' => $post->id,
+            'channel_or_group_id' => $post->channel_id,
+            'source_type' => 'post',
+            'post_id' => null, 'comment_id' => null, 'group_id' => null,
+            'keyword_id' => $keyword->id, 'text' => $text, 'url' => (string) $post->url,
+            'score' => $this->scoreFor($keyword),
+        ];
+        try {
+            Lead::query()->create([...$attributes, 'dedupe_key' => $key, 'status' => 'new']);
+            return true;
+        } catch (QueryException $e) {
+            if (! $this->isDuplicateKey($e)) throw $e;
+        }
+        Lead::query()->where('dedupe_key', $key)->firstOrFail()->fill($attributes)->save();
         return false;
     }
 

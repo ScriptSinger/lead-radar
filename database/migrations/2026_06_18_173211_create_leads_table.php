@@ -13,10 +13,15 @@ return new class extends Migration
     {
         Schema::create('leads', function (Blueprint $table) {
             $table->id();
+            $table->string('platform', 16)->default('vk'); // vk|telegram
+            $table->string('source_entity_type', 32)->nullable(); // post|comment
+            $table->unsignedBigInteger('source_entity_id')->nullable();
+            $table->unsignedBigInteger('channel_or_group_id')->nullable();
+            // VK compatibility fields. They are null for Telegram leads.
             $table->string('source_type'); // 'post' or 'comment'
-            $table->foreignId('post_id')->constrained('vk_posts')->cascadeOnDelete();
+            $table->foreignId('post_id')->nullable()->constrained('vk_posts')->cascadeOnDelete();
             $table->foreignId('comment_id')->nullable()->constrained('vk_comments')->cascadeOnDelete();
-            $table->foreignId('group_id')->constrained('vk_groups')->cascadeOnDelete();
+            $table->foreignId('group_id')->nullable()->constrained('vk_groups')->cascadeOnDelete();
             $table->foreignId('keyword_id')->constrained('keywords')->cascadeOnDelete();
             $table->text('text');
             $table->string('url');
@@ -28,6 +33,8 @@ return new class extends Migration
 
             $table->index(['status', 'created_at']);
             $table->index(['group_id', 'status']);
+            $table->index(['platform', 'source_entity_type', 'source_entity_id']);
+            $table->index(['platform', 'channel_or_group_id', 'status']);
         });
     }
 

@@ -8,6 +8,7 @@ use App\Models\ScanSetting;
 use App\Models\VkComment;
 use App\Models\VkGroup;
 use App\Models\VkPost;
+use App\Services\LeadMatcher;
 use App\Support\PostWindow;
 use App\Support\VkUrl;
 use Carbon\Carbon;

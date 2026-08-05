@@ -8,6 +8,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Lead extends Model
 {
     protected $fillable = [
+        'platform',
+        'source_entity_type',
+        'source_entity_id',
+        'channel_or_group_id',
         'source_type',
         'post_id',
         'comment_id',
@@ -24,6 +28,8 @@ class Lead extends Model
     {
         return [
             'score' => 'integer',
+            'source_entity_id' => 'integer',
+            'channel_or_group_id' => 'integer',
         ];
     }
 

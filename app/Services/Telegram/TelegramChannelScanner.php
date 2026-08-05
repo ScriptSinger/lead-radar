@@ -6,14 +6,18 @@ use App\Models\TelegramChannel;
 use App\Models\TelegramPost;
 use App\Models\TelegramScanRun;
 use App\Modules\Telegram\TelegramContentSource;
+use App\Services\LeadMatcher;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-/** Persists a channel's latest posts. Lead matching is added in the next stage. */
+/** Persists a channel's latest posts and creates keyword-matched leads. */
 class TelegramChannelScanner
 {
-    public function __construct(private readonly TelegramContentSource $source) {}
+    public function __construct(
+        private readonly TelegramContentSource $source,
+        private readonly LeadMatcher $leadMatcher,
+    ) {}
 
     /** @return array<string, mixed> */
     public function scan(TelegramChannel $channel, int $limit = 20, string $trigger = 'manual'): array
@@ -26,7 +30,7 @@ class TelegramChannelScanner
             'channel_id' => $channel->id,
             'scan_run_id' => $run->id,
             'posts_fetched' => 0, 'posts_created' => 0, 'posts_updated' => 0,
-            'posts_in_window' => 0, 'posts_outside_window' => 0,
+            'posts_in_window' => 0, 'posts_outside_window' => 0, 'leads_created' => 0, 'leads_updated' => 0,
             'window_cutoff' => $cutoff?->toIso8601String(), 'errors' => [], 'duration_ms' => 0,
         ];
 
@@ -38,13 +42,23 @@ class TelegramChannelScanner
 
             $stats['posts_fetched'] = count($result['posts']);
             $latestMessageId = null;
+            $windowPosts = [];
             foreach ($result['posts'] as $raw) {
                 [$post, $created] = $this->upsertPost($channel, $raw);
                 $created ? $stats['posts_created']++ : $stats['posts_updated']++;
-                $this->inWindow($post->posted_at, $cutoff)
-                    ? $stats['posts_in_window']++
-                    : $stats['posts_outside_window']++;
+                if ($this->inWindow($post->posted_at, $cutoff)) {
+                    $stats['posts_in_window']++;
+                    $windowPosts[] = $post;
+                } else {
+                    $stats['posts_outside_window']++;
+                }
                 $latestMessageId = max($latestMessageId ?? 0, (int) $post->telegram_message_id);
+            }
+
+            foreach ($windowPosts as $post) {
+                $matched = $this->leadMatcher->matchTelegramPost($post);
+                $stats['leads_created'] += $matched['created'];
+                $stats['leads_updated'] += $matched['updated'];
             }
 
             if ($stats['posts_fetched'] > 0) {

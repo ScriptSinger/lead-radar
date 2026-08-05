@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use App\MoonShine\Layouts\MoonShineLayout;
-use App\MoonShine\Pages\Dashboard;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull;
@@ -18,7 +16,9 @@ use MoonShine\Crud\Forms\LoginForm;
 use MoonShine\Laravel\Exceptions\MoonShineNotFoundException;
 use MoonShine\Laravel\Http\Middleware\Authenticate;
 use MoonShine\Laravel\Http\Middleware\ChangeLocale;
+use MoonShine\Laravel\Layouts\AppLayout;
 use MoonShine\Laravel\Models\MoonshineUser;
+use MoonShine\Laravel\Pages\Dashboard;
 use MoonShine\Laravel\Pages\ErrorPage;
 use MoonShine\Laravel\Pages\LoginPage;
 use MoonShine\Laravel\Pages\ProfilePage;
@@ -90,8 +90,8 @@ return [
     ],
 
     // Layout, palette, pages, forms
-    'layout' => MoonShineLayout::class,
-    'palette' => PurplePalette::class,
+    'layout' => App\MoonShine\Layouts\MoonShineLayout::class,
+    'palette' => MoonShine\ColorManager\Palettes\PurplePalette::class,
 
     'forms' => [
         'login' => LoginForm::class,
@@ -99,7 +99,7 @@ return [
     ],
 
     'pages' => [
-        'dashboard' => Dashboard::class,
+        'dashboard' => App\MoonShine\Pages\Dashboard::class,
         'profile' => ProfilePage::class,
         'login' => LoginPage::class,
         'error' => ErrorPage::class,

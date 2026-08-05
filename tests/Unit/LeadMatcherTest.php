@@ -68,5 +68,6 @@ class LeadMatcherTest extends TestCase
         $this->assertSame('c:9:k:2', $this->matcher->dedupeKey('comment', 2, 5, 9));
         // comment without comment id falls back to post key shape
         $this->assertSame('p:5:k:2', $this->matcher->dedupeKey('comment', 2, 5, null));
+        $this->assertSame('telegram:p:5:k:2', $this->matcher->dedupeKey('post', 2, 5, null, 'telegram'));
     }
 }

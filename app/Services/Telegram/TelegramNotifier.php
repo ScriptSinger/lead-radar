@@ -5,6 +5,7 @@ namespace App\Services\Telegram;
 use App\Models\Lead;
 use App\Models\ScanSetting;
 use App\Models\VkGroup;
+use App\Models\TelegramChannel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -181,7 +182,11 @@ class TelegramNotifier
     public function formatLead(Lead $lead): string
     {
         $keyword = e($lead->keyword?->word ?? '—');
-        $group = e($lead->group?->name ?? '—');
+        $isTelegram = $lead->platform === 'telegram';
+        $container = $isTelegram
+            ? TelegramChannel::query()->find($lead->channel_or_group_id)?->name
+            : $lead->group?->name;
+        $group = e($container ?? '—');
         $source = $lead->source_type === 'comment' ? '💬 comment' : '📝 post';
         $score = (int) $lead->score;
         $url = $lead->url;
@@ -197,7 +202,7 @@ class TelegramNotifier
 
         if (filled($url)) {
             $lines[] = '';
-            $lines[] = '🔗 <a href="'.e($url).'">Open in VK</a>';
+            $lines[] = '🔗 <a href="'.e($url).'">Open in '.($isTelegram ? 'Telegram' : 'VK').'</a>';
         }
 
         $lines[] = '';
