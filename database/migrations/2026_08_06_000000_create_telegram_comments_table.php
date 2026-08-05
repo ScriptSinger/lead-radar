@@ -24,5 +24,9 @@ return new class extends Migration
             $table->index(['post_id', 'thread_root_id', 'depth']);
         });
     }
-    public function down(): void { Schema::dropIfExists('telegram_comments'); }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('telegram_comments');
+    }
 };

@@ -43,5 +43,9 @@ class TelegramPost extends Model
     {
         return $this->belongsTo(TelegramChannel::class, 'channel_id');
     }
-    public function comments(): HasMany { return $this->hasMany(TelegramComment::class, 'post_id'); }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(TelegramComment::class, 'post_id');
+    }
 }

@@ -19,6 +19,6 @@ class TelegramPostDetailPage extends DetailPage
             $items[] = Box::make('Comments', [TelegramPostCommentsTree::make($post)]);
         }
 
-return $items;
+        return $items;
     }
 }
