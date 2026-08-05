@@ -14,7 +14,8 @@ return new class extends Migration
             $table->string('url')->unique();
             $table->string('username')->nullable()->unique();
             // MTProto peer data; access_hash is required to read a resolved channel.
-            $table->unsignedBigInteger('telegram_channel_id')->nullable()->unique();
+            // MadelineProto returns a signed dialog ID (for example -1001234567890).
+            $table->bigInteger('telegram_channel_id')->nullable()->unique();
             $table->string('access_hash', 32)->nullable();
             $table->string('name');
             $table->boolean('active')->default(true);
