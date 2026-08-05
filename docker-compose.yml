@@ -93,7 +93,7 @@ services:
         echo 'worker-scan: waiting for database...'
         until php artisan migrate:status >/dev/null 2>&1; do sleep 2; done
         echo 'worker-scan: starting queue:work'
-        exec php artisan queue:work "$${QUEUE_CONNECTION:-database}" --queue=vk.scan --tries=2 --timeout=300 --sleep=1 -vvv
+        exec php artisan queue:work redis --queue=vk.scan,telegram.scan --tries=2 --timeout=300 --sleep=1 -vvv
 
   worker-ops:
     build:
@@ -120,7 +120,7 @@ services:
         echo 'worker-ops: waiting for database...'
         until php artisan migrate:status >/dev/null 2>&1; do sleep 2; done
         echo 'worker-ops: starting queue:work'
-        exec php artisan queue:work "$${QUEUE_CONNECTION:-database}" --queue=telegram.webhook,broadcast.telegram,default --tries=2 --timeout=60 --sleep=1 -vvv
+        exec php artisan queue:work redis --queue=telegram.webhook,broadcast.telegram,default --tries=2 --timeout=60 --sleep=1 -vvv
 
   scheduler:
     build:

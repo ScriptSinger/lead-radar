@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Vk\ScanSchedule;
+use App\Services\Telegram\TelegramScanSchedule;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -25,5 +26,12 @@ Schedule::call(static function (): void {
     app(ScanSchedule::class)->tick();
 })
     ->name('vk-scan-schedule-tick')
+    ->everyMinute()
+    ->withoutOverlapping(5);
+
+Schedule::call(static function (): void {
+    app(TelegramScanSchedule::class)->tick();
+})
+    ->name('telegram-scan-schedule-tick')
     ->everyMinute()
     ->withoutOverlapping(5);

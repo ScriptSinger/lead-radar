@@ -53,6 +53,12 @@ return [
         'webhook_url' => env('TELEGRAM_WEBHOOK_URL'),
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
         'ngrok_api_url' => env('NGROK_API_URL', 'http://ngrok:4040'),
+        'scan' => [
+            'enabled' => filter_var(env('TELEGRAM_SCAN_ENABLED', false), FILTER_VALIDATE_BOOL),
+            'interval_minutes' => (int) env('TELEGRAM_SCAN_INTERVAL_MINUTES', 30),
+            'limit' => (int) env('TELEGRAM_SCAN_LIMIT', 20),
+            'channel_delay_seconds' => (int) env('TELEGRAM_SCAN_CHANNEL_DELAY_SECONDS', 3),
+        ],
     ],
 
     /*
