@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources\VkGroup;
+namespace App\MoonShine\Resources\Vk;
 
 use App\Jobs\ScanVkGroupJob;
 use App\Models\ScanSetting;
 use App\Models\VkGroup;
-use App\MoonShine\Resources\VkGroup\Pages\VkGroupDetailPage;
-use App\MoonShine\Resources\VkGroup\Pages\VkGroupFormPage;
-use App\MoonShine\Resources\VkGroup\Pages\VkGroupIndexPage;
+use App\MoonShine\Resources\Vk\Pages\VkGroupDetailPage;
+use App\MoonShine\Resources\Vk\Pages\VkGroupFormPage;
+use App\MoonShine\Resources\Vk\Pages\VkGroupIndexPage;
 use App\Support\VkUrl;
 use MoonShine\Contracts\Core\PageContract;
 use MoonShine\Laravel\Resources\ModelResource;

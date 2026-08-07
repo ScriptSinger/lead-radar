@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources\VkGroup\Pages;
+namespace App\MoonShine\Resources\Vk\Pages;
 
-use App\MoonShine\Resources\VkGroup\VkGroupResource;
+use App\MoonShine\Resources\Vk\VkGroupResource;
 use App\Support\VkUrl;
 use Illuminate\Validation\Rule;
 use MoonShine\Contracts\Core\TypeCasts\DataWrapperContract;

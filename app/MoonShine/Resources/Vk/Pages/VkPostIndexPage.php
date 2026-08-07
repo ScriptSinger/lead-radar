@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources\VkPost\Pages;
+namespace App\MoonShine\Resources\Vk\Pages;
 
 use App\Models\VkGroup;
-use App\MoonShine\Resources\VkGroup\VkGroupResource;
-use App\MoonShine\Resources\VkPost\VkPostResource;
+use App\MoonShine\Resources\Vk\VkGroupResource;
+use App\MoonShine\Resources\Vk\VkPostResource;
 use MoonShine\Contracts\UI\ComponentContract;
 use MoonShine\Contracts\UI\FieldContract;
 use MoonShine\Laravel\Fields\Relationships\BelongsTo;

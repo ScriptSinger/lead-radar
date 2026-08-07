@@ -6,7 +6,7 @@ namespace App\MoonShine\Components;
 
 use App\Models\VkComment;
 use App\Models\VkPost;
-use App\MoonShine\Resources\VkComment\VkCommentResource;
+use App\MoonShine\Resources\Vk\VkCommentResource;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Leeto\MoonShineTree\Resources\TreeResource;
 use MoonShine\AssetManager\Css;

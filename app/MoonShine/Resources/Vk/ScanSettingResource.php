@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources\ScanSetting;
+namespace App\MoonShine\Resources\Vk;
 
 use App\Models\ScanSetting;
 use App\Models\VkGroup;
-use App\MoonShine\Resources\ScanSetting\Pages\ScanSettingIndexPage;
+use App\MoonShine\Resources\Vk\Pages\ScanSettingIndexPage;
 use App\Services\Vk\ScanSchedule;
 use App\Support\PostWindow;
 use MoonShine\Contracts\Core\PageContract;

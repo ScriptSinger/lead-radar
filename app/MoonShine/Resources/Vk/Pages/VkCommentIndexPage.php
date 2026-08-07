@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources\VkComment\Pages;
+namespace App\MoonShine\Resources\Vk\Pages;
 
-use App\MoonShine\Resources\VkComment\VkCommentResource;
+use App\MoonShine\Resources\Vk\VkCommentResource;
 use Leeto\MoonShineTree\View\Components\TreeComponent;
 use MoonShine\Contracts\UI\ComponentContract;
 use MoonShine\Crud\Components\Fragment;

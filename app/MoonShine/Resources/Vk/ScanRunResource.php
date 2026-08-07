@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources\ScanRun;
+namespace App\MoonShine\Resources\Vk;
 
 use App\Models\ScanRun;
 use App\Models\VkGroup;
-use App\MoonShine\Resources\VkGroup\VkGroupResource;
 use MoonShine\Laravel\Fields\Relationships\BelongsTo;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\Support\Enums\Action;

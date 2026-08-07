@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources;
+namespace App\MoonShine\Resources\Telegram;
 
 use App\Jobs\ScanTelegramChannelJob;
 use App\Models\TelegramChannel;

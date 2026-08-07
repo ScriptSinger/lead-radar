@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources\VkPost\Pages;
+namespace App\MoonShine\Resources\Vk\Pages;
 
 use App\Models\VkPost;
 use App\MoonShine\Components\PostCommentsTree;
-use App\MoonShine\Resources\VkPost\VkPostResource;
+use App\MoonShine\Resources\Vk\VkPostResource;
 use MoonShine\Contracts\UI\ComponentContract;
 use MoonShine\Laravel\Pages\Crud\DetailPage;
 use MoonShine\UI\Components\Layout\Box;

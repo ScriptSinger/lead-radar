@@ -2,14 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources\VkPost;
+namespace App\MoonShine\Resources\Vk;
 
 use App\Models\VkPost;
 use App\MoonShine\Resources\Lead\LeadResource;
-use App\MoonShine\Resources\VkGroup\VkGroupResource;
-use App\MoonShine\Resources\VkPost\Pages\VkPostDetailPage;
-use App\MoonShine\Resources\VkPost\Pages\VkPostFormPage;
-use App\MoonShine\Resources\VkPost\Pages\VkPostIndexPage;
+use App\MoonShine\Resources\Vk\Pages\VkPostDetailPage;
+use App\MoonShine\Resources\Vk\Pages\VkPostFormPage;
+use App\MoonShine\Resources\Vk\Pages\VkPostIndexPage;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Contracts\Core\PageContract;
 use MoonShine\Laravel\Fields\Relationships\BelongsTo;

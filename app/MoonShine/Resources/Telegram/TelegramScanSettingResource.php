@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources;
+namespace App\MoonShine\Resources\Telegram;
 
 use App\Models\TelegramScanSetting;
 use MoonShine\Laravel\Resources\ModelResource;

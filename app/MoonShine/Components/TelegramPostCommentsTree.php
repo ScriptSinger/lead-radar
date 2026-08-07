@@ -6,7 +6,7 @@ namespace App\MoonShine\Components;
 
 use App\Models\TelegramComment;
 use App\Models\TelegramPost;
-use App\MoonShine\Resources\TelegramCommentResource;
+use App\MoonShine\Resources\Telegram\TelegramCommentResource;
 use MoonShine\AssetManager\Css;
 use MoonShine\UI\Components\MoonShineComponent;
 

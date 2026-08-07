@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources\VkComment;
+namespace App\MoonShine\Resources\Vk;
 
 use App\Models\VkComment;
 use App\Models\VkPost;
 use App\MoonShine\Resources\Lead\LeadResource;
-use App\MoonShine\Resources\VkComment\Pages\VkCommentIndexPage;
-use App\MoonShine\Resources\VkPost\VkPostResource;
+use App\MoonShine\Resources\Vk\Pages\VkCommentIndexPage;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Leeto\MoonShineTree\Resources\TreeResource;

@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources\ScanSetting\Pages;
+namespace App\MoonShine\Resources\Vk\Pages;
 
-use App\MoonShine\Resources\ScanSetting\ScanSettingResource;
+use App\MoonShine\Resources\Vk\VkGroupResource;
 use MoonShine\Contracts\UI\ActionButtonContract;
 use MoonShine\Laravel\Pages\Crud\IndexPage;
 use MoonShine\Support\ListOf;
 use MoonShine\UI\Components\ActionButton;
 
 /**
- * @extends IndexPage<ScanSettingResource>
+ * @extends IndexPage<VkGroupResource>
  */
-class ScanSettingIndexPage extends IndexPage
+class VkGroupIndexPage extends IndexPage
 {
     /**
      * @return ListOf<ActionButtonContract>
@@ -22,13 +22,13 @@ class ScanSettingIndexPage extends IndexPage
     {
         return parent::buttons()
             ->prepend(
-                ActionButton::make('Run scan now')
-                    ->name('scan-settings-run-now')
-                    ->icon('play')
+                ActionButton::make('Scan now')
+                    ->name('vk-group-scan-now')
+                    ->icon('arrow-path')
                     ->primary()
                     ->method(
-                        method: 'runNow',
-                        message: 'Scan wave queued',
+                        method: 'scanNow',
+                        message: 'Scan finished',
                     ),
             );
     }

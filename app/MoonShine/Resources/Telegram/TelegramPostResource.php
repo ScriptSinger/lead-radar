@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\MoonShine\Resources;
+namespace App\MoonShine\Resources\Telegram;
 
 use App\Models\TelegramPost;
+use App\MoonShine\Resources\Telegram\Pages\TelegramPostDetailPage;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Laravel\Pages\Crud\FormPage;
 use MoonShine\Laravel\Pages\Crud\IndexPage;
