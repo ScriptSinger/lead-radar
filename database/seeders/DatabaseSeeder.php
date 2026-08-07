@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             ScanSettingSeeder::class,
             VkGroupSeeder::class,
             TelegramChannelSeeder::class,
+            TelegramScanSettingSeeder::class,
             KeywordSeeder::class,
         ]);
     }

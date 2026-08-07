@@ -12,6 +12,7 @@ use App\MoonShine\Resources\TelegramChannelResource;
 use App\MoonShine\Resources\TelegramCommentResource;
 use App\MoonShine\Resources\TelegramPostResource;
 use App\MoonShine\Resources\TelegramScanRunResource;
+use App\MoonShine\Resources\TelegramScanSettingResource;
 use App\MoonShine\Resources\VkGroup\VkGroupResource;
 use App\MoonShine\Resources\VkPost\VkPostResource;
 use MoonShine\ColorManager\ColorManager;
@@ -52,6 +53,7 @@ final class MoonShineLayout extends AppLayout
                 MenuItem::make(VkGroupResource::class, 'Groups'),
                 MenuItem::make(VkPostResource::class, 'Posts'),
                 MenuItem::make(ScanRunResource::class, 'Scan Runs'),
+                MenuItem::make(ScanSettingResource::class, 'Scan Settings'),
             ], 'globe-alt'),
 
             MenuGroup::make('Telegram', [
@@ -59,11 +61,9 @@ final class MoonShineLayout extends AppLayout
                 MenuItem::make(TelegramPostResource::class, 'Posts'),
                 MenuItem::make(TelegramCommentResource::class, 'Comments'),
                 MenuItem::make(TelegramScanRunResource::class, 'Scan Runs'),
+                MenuItem::make(TelegramScanSettingResource::class, 'Scan Settings'),
             ], 'paper-airplane'),
 
-            MenuGroup::make('Settings', [
-                MenuItem::make(ScanSettingResource::class, 'VK Scan Settings'),
-            ], 'cog-6-tooth'),
         ];
     }
 

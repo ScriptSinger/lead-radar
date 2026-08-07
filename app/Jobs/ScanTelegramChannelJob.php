@@ -16,7 +16,7 @@ class ScanTelegramChannelJob implements ShouldQueue
 
     public int $timeout = 180;
 
-    public function __construct(public int $channelId, public int $limit = 20, public string $trigger = 'job')
+    public function __construct(public int $channelId, public int $limit = 20, public string $trigger = 'job', public bool $withComments = true, public int $commentsLimit = 100)
     {
         $this->onConnection('redis')->onQueue('telegram.scan');
     }
@@ -35,7 +35,7 @@ class ScanTelegramChannelJob implements ShouldQueue
     {
         $channel = TelegramChannel::query()->find($this->channelId);
         if ($channel?->active) {
-            $scanner->scan($channel, $this->limit, $this->trigger);
+            $scanner->scan($channel, $this->limit, $this->trigger, $this->withComments, $this->commentsLimit);
         }
     }
 }

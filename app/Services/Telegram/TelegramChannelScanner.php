@@ -22,7 +22,7 @@ class TelegramChannelScanner
     ) {}
 
     /** @return array<string, mixed> */
-    public function scan(TelegramChannel $channel, int $limit = 20, string $trigger = 'manual'): array
+    public function scan(TelegramChannel $channel, int $limit = 20, string $trigger = 'manual', bool $withComments = true, int $commentsLimit = 100): array
     {
         $limit = max(1, min(100, $limit));
         $started = microtime(true);
@@ -61,7 +61,10 @@ class TelegramChannelScanner
                 $matched = $this->leadMatcher->matchTelegramPost($post);
                 $stats['leads_created'] += $matched['created'];
                 $stats['leads_updated'] += $matched['updated'];
-                foreach ($this->source->fetchComments($post) as $rawComment) {
+                if (! $withComments) {
+                    continue;
+                }
+                foreach ($this->source->fetchComments($post, $commentsLimit) as $rawComment) {
                     $comment = TelegramComment::query()->updateOrCreate(['post_id' => $post->id, 'telegram_message_id' => $rawComment['telegram_message_id']], $rawComment);
                     $matched = $this->leadMatcher->matchTelegramComment($comment);
                     $stats['leads_created'] += $matched['created'];
