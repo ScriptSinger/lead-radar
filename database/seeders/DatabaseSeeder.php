@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ScanSettingSeeder::class,
             VkGroupSeeder::class,
+            TelegramChannelSeeder::class,
             KeywordSeeder::class,
         ]);
     }

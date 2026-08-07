@@ -33,8 +33,8 @@ class TelegramContentSource
         }
 
         $chat = is_array($info) && is_array($info['Chat'] ?? null) ? $info['Chat'] : null;
-        if ($chat === null || ($chat['_'] ?? null) !== 'channel' || ($chat['megagroup'] ?? false)) {
-            throw new TelegramContentSourceException("@{$username} is not a public broadcast channel.");
+        if ($chat === null || ($chat['_'] ?? null) !== 'channel') {
+            throw new TelegramContentSourceException("@{$username} is not a public Telegram channel or group.");
         }
 
         $channelId = (int) ($chat['id'] ?? 0);
