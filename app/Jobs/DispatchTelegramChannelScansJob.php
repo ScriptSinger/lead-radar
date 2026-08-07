@@ -23,7 +23,7 @@ class DispatchTelegramChannelScansJob implements ShouldQueue
         $delay = max(0, (int) $settings->channel_delay_seconds);
         $seconds = 0;
         TelegramChannel::query()->where('active', true)->when($this->onlyChannelId, fn ($q) => $q->whereKey($this->onlyChannelId))->orderBy('id')->each(
-            function (TelegramChannel $channel) use ($limit, $delay, &$seconds): void {
+            function (TelegramChannel $channel) use ($limit, $delay, $settings, &$seconds): void {
                 ScanTelegramChannelJob::dispatch($channel->id, $limit, $this->trigger, (bool) $settings->with_comments, (int) $settings->comments_limit)
                     ->delay(now()->addSeconds($seconds));
                 $seconds += $delay;
