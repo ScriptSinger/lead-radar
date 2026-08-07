@@ -28,6 +28,6 @@ class TelegramScanSettingResource extends ModelResource
 
     protected function formFields(): iterable
     {
-        return [Switcher::make('Schedule enabled', 'schedule_enabled'), Number::make('Interval minutes', 'interval_minutes')->min(1)->max(1440), Number::make('Channel delay seconds', 'channel_delay_seconds')->min(0)->max(600), Number::make('Posts per source', 'scan_limit')->min(1)->max(100), Switcher::make('Scan comments', 'with_comments'), Number::make('Comments per post', 'comments_limit')->min(1)->max(100), Date::make('Last dispatched', 'last_dispatched_at')->withTime(), Textarea::make('Notes','notes')];
+        return [Switcher::make('Schedule enabled', 'schedule_enabled'), Number::make('Interval minutes', 'interval_minutes')->min(1)->max(1440), Number::make('Channel delay seconds', 'channel_delay_seconds')->min(0)->max(600), Number::make('Posts per source', 'scan_limit')->min(1)->max(100), Switcher::make('Scan comments', 'with_comments'), Number::make('Comments per post', 'comments_limit')->min(1)->max(100), Date::make('Last dispatched', 'last_dispatched_at')->withTime(), Textarea::make('Notes', 'notes')];
     }
 }
