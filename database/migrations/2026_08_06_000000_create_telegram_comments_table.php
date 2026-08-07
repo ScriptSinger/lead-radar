@@ -17,7 +17,8 @@ return new class extends Migration
             $table->foreignId('thread_root_id')->nullable()->constrained('telegram_comments')->nullOnDelete();
             $table->unsignedTinyInteger('depth')->default(0);
             $table->text('text')->nullable();
-            $table->unsignedBigInteger('author_telegram_id')->nullable();
+            // Telegram peer IDs can be negative for channels and groups.
+            $table->bigInteger('author_telegram_id')->nullable();
             $table->timestamp('posted_at');
             $table->timestamps();
             $table->unique(['post_id', 'telegram_message_id']);

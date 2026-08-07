@@ -94,7 +94,7 @@ class TelegramContentSource
         } catch (Throwable $e) {
             // Comments are optional per post. A channel may have discussions
             // disabled, or a particular post may not have a linked thread.
-            Log::info('telegram.comments.unavailable', [
+            Log::debug('telegram.comments.unavailable', [
                 'post_id' => $post->id,
                 'telegram_message_id' => $post->telegram_message_id,
                 'error' => $e->getMessage(),

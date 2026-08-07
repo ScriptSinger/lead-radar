@@ -15,7 +15,8 @@ return new class extends Migration
             $table->unsignedBigInteger('telegram_message_id');
             $table->text('text')->nullable();
             $table->string('url');
-            $table->unsignedBigInteger('author_telegram_id')->nullable();
+            // Telegram peer IDs can be negative for channels and groups.
+            $table->bigInteger('author_telegram_id')->nullable();
             $table->boolean('has_media')->default(false);
             $table->timestamp('posted_at');
             $table->timestamps();

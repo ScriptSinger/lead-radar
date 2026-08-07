@@ -5,9 +5,18 @@ declare(strict_types=1);
 namespace App\MoonShine\Resources\Telegram;
 
 use App\Models\TelegramComment;
+use App\MoonShine\Resources\Telegram\Pages\TelegramCommentIndexPage;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Leeto\MoonShineTree\Resources\TreeResource;
+use MoonShine\Contracts\Core\PageContract;
+use MoonShine\Laravel\Pages\Crud\DetailPage;
+use MoonShine\Laravel\Pages\Crud\FormPage;
 use MoonShine\Support\Enums\Color;
+use MoonShine\UI\Fields\Date;
+use MoonShine\UI\Fields\ID;
+use MoonShine\UI\Fields\Number;
+use MoonShine\UI\Fields\Textarea;
 
 /** Nested Telegram discussion replies, displayed under their source post. */
 class TelegramCommentResource extends TreeResource
@@ -42,6 +51,11 @@ class TelegramCommentResource extends TreeResource
         return true;
     }
 
+    public function wrappable(): bool
+    {
+        return true;
+    }
+
     public function treeItemTitle(Model $item): string
     {
         $text = trim(preg_replace('/\s+/u', ' ', (string) $item->text) ?? '');
@@ -68,5 +82,37 @@ class TelegramCommentResource extends TreeResource
         ]);
 
         return implode(' · ', $parts);
+    }
+
+    protected function indexFields(): iterable
+    {
+        return [
+            ID::make()->sortable(),
+            Number::make('Telegram ID', 'telegram_message_id')->sortable(),
+            Number::make('Depth', 'depth'),
+            Textarea::make('Text', 'text'),
+            Date::make('Posted at', 'posted_at')->format('Y-m-d H:i')->sortable(),
+        ];
+    }
+
+    /**
+     * @return list<class-string<PageContract>>
+     */
+    protected function pages(): array
+    {
+        return [
+            TelegramCommentIndexPage::class,
+            FormPage::class,
+            DetailPage::class,
+        ];
+    }
+
+    protected function modifyQueryBuilder(Builder $builder): Builder
+    {
+        return $builder
+            ->orderByRaw('COALESCE(thread_root_id, id) ASC')
+            ->orderBy('depth')
+            ->orderBy('posted_at')
+            ->orderBy('id');
     }
 }
