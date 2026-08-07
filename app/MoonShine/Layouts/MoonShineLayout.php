@@ -51,6 +51,7 @@ final class MoonShineLayout extends AppLayout
             MenuGroup::make('VK', [
                 MenuItem::make(VkGroupResource::class, 'Groups'),
                 MenuItem::make(VkPostResource::class, 'Posts'),
+                MenuItem::make(ScanRunResource::class, 'Scan Runs'),
             ], 'globe-alt'),
 
             MenuGroup::make('Telegram', [
@@ -60,11 +61,9 @@ final class MoonShineLayout extends AppLayout
                 MenuItem::make(TelegramScanRunResource::class, 'Scan Runs'),
             ], 'paper-airplane'),
 
-            // Scan orchestration / observability
-            MenuGroup::make('Scanning', [
-                MenuItem::make(ScanRunResource::class, 'Scan Runs'),
-                MenuItem::make(ScanSettingResource::class, 'Scan Settings'),
-            ], 'arrow-path'),
+            MenuGroup::make('Settings', [
+                MenuItem::make(ScanSettingResource::class, 'VK Scan Settings'),
+            ], 'cog-6-tooth'),
         ];
     }
 
