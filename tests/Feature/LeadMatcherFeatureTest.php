@@ -7,7 +7,7 @@ use App\Models\Lead;
 use App\Models\VkComment;
 use App\Models\VkGroup;
 use App\Models\VkPost;
-use App\Services\Vk\LeadMatcher;
+use App\Services\LeadMatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;

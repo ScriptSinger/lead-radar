@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\VkPost;
-use App\Services\Vk\LeadMatcher;
+use App\Services\LeadMatcher;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

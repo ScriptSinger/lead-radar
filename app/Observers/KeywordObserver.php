@@ -7,7 +7,7 @@ use App\Models\Keyword;
 
 /**
  * After a keyword is created/updated, re-run matching on stored content.
- * MoonShine save does not scan VK — only rematches DB posts/comments.
+ * MoonShine save does not scan sources — only rematches saved content.
  */
 class KeywordObserver
 {

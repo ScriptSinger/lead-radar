@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Services\Vk\LeadMatcher;
+use App\Services\LeadMatcher;
 use PHPUnit\Framework\TestCase;
 
 class LeadMatcherTest extends TestCase
