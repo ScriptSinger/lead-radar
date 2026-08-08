@@ -26,7 +26,7 @@ class RematchLeadsJob implements ShouldBeUnique, ShouldQueue
 
     public function __construct()
     {
-        $this->onConnection('redis')->onQueue('default');
+        $this->onQueue('default');
     }
 
     public function uniqueId(): string
