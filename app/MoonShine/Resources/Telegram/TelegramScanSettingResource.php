@@ -31,7 +31,7 @@ class TelegramScanSettingResource extends ModelResource
             Number::make('Posts', 'scan_limit'),
             Switcher::make('Comments', 'with_comments'),
             Number::make('Comments limit', 'comments_limit'),
-            Date::make('Last dispatch', 'last_dispatched_at')->format('Y-m-d H:i')
+            Date::make('Last dispatch', 'last_dispatched_at')->format('Y-m-d H:i'),
         ];
     }
 
@@ -45,7 +45,7 @@ class TelegramScanSettingResource extends ModelResource
             Switcher::make('Scan comments', 'with_comments'),
             Number::make('Comments per post', 'comments_limit')->min(1)->max(100),
             Date::make('Last dispatched', 'last_dispatched_at')->withTime(),
-            Textarea::make('Notes', 'notes')
+            Textarea::make('Notes', 'notes'),
         ];
     }
 }
