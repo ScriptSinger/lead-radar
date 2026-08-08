@@ -6,9 +6,12 @@ namespace App\MoonShine\Resources\WorkspaceInvitation;
 
 use App\Enums\WorkspaceMemberRole;
 use App\Mail\WorkspaceInvitationMail;
+use App\Models\AdminUser;
+use App\Models\Workspace;
 use App\Models\WorkspaceInvitation;
 use App\MoonShine\Resources\Workspace\WorkspaceResource;
 use App\MoonShine\Resources\WorkspaceInvitation\Pages\WorkspaceInvitationIndexPage;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use MoonShine\Contracts\Core\PageContract;
@@ -19,6 +22,7 @@ use MoonShine\Laravel\Pages\Crud\FormPage;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\Support\Attributes\AsyncMethod;
 use MoonShine\Support\Attributes\Icon;
+use MoonShine\Support\Enums\Ability;
 use MoonShine\Support\Enums\SortDirection;
 use MoonShine\Support\Enums\ToastType;
 use MoonShine\UI\Fields\Date;
@@ -72,7 +76,9 @@ class WorkspaceInvitationResource extends ModelResource
     {
         return [
             ID::make(),
-            BelongsTo::make('Workspace', 'workspace', resource: WorkspaceResource::class)->required(),
+            BelongsTo::make('Workspace', 'workspace', resource: WorkspaceResource::class)
+                ->valuesQuery(fn (Builder $query): Builder => $this->manageableWorkspaces($query))
+                ->required(),
             Email::make('Email', 'email')->required(),
             $this->roleField()->default(WorkspaceMemberRole::Member->value),
         ];
@@ -103,6 +109,8 @@ class WorkspaceInvitationResource extends ModelResource
         $invitation->expires_at = now()->addHours(max(1, (int) config('workspaces.invitation_expiration_hours')));
         $invitation->invited_by = auth('moonshine')->id();
 
+        abort_unless($this->canManageWorkspaceId((int) $invitation->workspace_id), 403);
+
         return $item;
     }
 
@@ -122,7 +130,7 @@ class WorkspaceInvitationResource extends ModelResource
     #[AsyncMethod]
     public function resend(): void
     {
-        $invitation = WorkspaceInvitation::query()->find((int) request('resourceItem'));
+        $invitation = $this->scopeToCurrentUser(WorkspaceInvitation::query())->find((int) request('resourceItem'));
 
         if ($invitation === null || $invitation->accepted_at !== null) {
             toast('Invitation cannot be resent', ToastType::ERROR);
@@ -137,6 +145,37 @@ class WorkspaceInvitationResource extends ModelResource
         ])->save();
 
         Mail::to($invitation->email)->send(new WorkspaceInvitationMail($invitation, $invitation->plainToken));
+    }
+
+    protected function modifyQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToCurrentUser($builder);
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToCurrentUser($builder);
+    }
+
+    protected function isCan(Ability $ability): bool
+    {
+        $user = auth('moonshine')->user();
+
+        if (! $user instanceof AdminUser || $user->isSystemAdmin()) {
+            return parent::isCan($ability);
+        }
+
+        if ($ability === Ability::CREATE) {
+            return $this->manageableWorkspaces(Workspace::query())->exists();
+        }
+
+        if ($ability === Ability::VIEW_ANY) {
+            return $this->manageableWorkspaces(Workspace::query())->exists();
+        }
+
+        $invitation = $this->getItem()?->getOriginal();
+
+        return $invitation instanceof WorkspaceInvitation && $this->canManageWorkspaceId($invitation->workspace_id);
     }
 
     /**
@@ -156,5 +195,51 @@ class WorkspaceInvitationResource extends ModelResource
         return Select::make('Role', 'role')
             ->options($this->roleOptions())
             ->modifyRawValue(static fn (mixed $role): mixed => $role instanceof WorkspaceMemberRole ? $role->value : $role);
+    }
+
+    private function scopeToCurrentUser(Builder $builder): Builder
+    {
+        $user = auth('moonshine')->user();
+
+        if (! $user instanceof AdminUser || $user->isSystemAdmin()) {
+            return $builder;
+        }
+
+        return $builder->whereHas(
+            'workspace.members',
+            static fn (Builder $query): Builder => $query
+                ->whereKey($user->id)
+                ->whereIn('workspace_user.role', [
+                    WorkspaceMemberRole::Owner->value,
+                    WorkspaceMemberRole::Admin->value,
+                ]),
+        );
+    }
+
+    private function manageableWorkspaces(Builder $builder): Builder
+    {
+        $user = auth('moonshine')->user();
+
+        if (! $user instanceof AdminUser || $user->isSystemAdmin()) {
+            return $builder;
+        }
+
+        return $builder->whereHas(
+            'members',
+            static fn (Builder $query): Builder => $query
+                ->whereKey($user->id)
+                ->whereIn('workspace_user.role', [
+                    WorkspaceMemberRole::Owner->value,
+                    WorkspaceMemberRole::Admin->value,
+                ]),
+        );
+    }
+
+    private function canManageWorkspaceId(int $workspaceId): bool
+    {
+        $workspace = Workspace::query()->find($workspaceId);
+        $user = auth('moonshine')->user();
+
+        return $workspace !== null && $user instanceof AdminUser && $user->canManageWorkspace($workspace);
     }
 }

@@ -11,6 +11,7 @@ use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\MenuManager\Attributes\Group;
 use MoonShine\MenuManager\Attributes\Order;
 use MoonShine\Support\Attributes\Icon;
+use MoonShine\Support\Enums\Ability;
 use MoonShine\Support\Enums\Action;
 use MoonShine\Support\ListOf;
 
@@ -38,6 +39,13 @@ class MoonShineUserResource extends ModelResource
     protected function activeActions(): ListOf
     {
         return parent::activeActions()->except(Action::VIEW);
+    }
+
+    protected function isCan(Ability $ability): bool
+    {
+        return auth('moonshine')->user() instanceof AdminUser
+            && auth('moonshine')->user()->isSystemAdmin()
+            && parent::isCan($ability);
     }
 
     protected function pages(): array

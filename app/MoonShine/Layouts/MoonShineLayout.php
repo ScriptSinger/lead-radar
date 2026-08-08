@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\MoonShine\Layouts;
 
+use App\Models\AdminUser;
 use App\MoonShine\Resources\Keyword\KeywordResource;
 use App\MoonShine\Resources\Lead\LeadResource;
 use App\MoonShine\Resources\Telegram\TelegramChannelResource;
@@ -41,8 +42,13 @@ final class MoonShineLayout extends AppLayout
 
     protected function menu(): array
     {
+        $user = auth('moonshine')->user();
+        $systemMenu = $user instanceof AdminUser && $user->isSystemAdmin()
+            ? parent::menu()
+            : [];
+
         return [
-            ...parent::menu(),
+            ...$systemMenu,
 
             MenuGroup::make('Workspace', [
                 MenuItem::make(WorkspaceResource::class, 'Workspaces'),
