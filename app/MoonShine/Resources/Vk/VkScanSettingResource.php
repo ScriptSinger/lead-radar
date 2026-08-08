@@ -6,7 +6,7 @@ namespace App\MoonShine\Resources\Vk;
 
 use App\Models\ScanSetting;
 use App\Models\VkGroup;
-use App\MoonShine\Resources\Vk\Pages\ScanSettingIndexPage;
+use App\MoonShine\Resources\Vk\Pages\VkScanSettingIndexPage;
 use App\Services\Vk\ScanSchedule;
 use App\Support\PostWindow;
 use MoonShine\Contracts\Core\PageContract;
@@ -32,7 +32,7 @@ use MoonShine\UI\Fields\Textarea;
  *
  * @extends ModelResource<ScanSetting>
  */
-class ScanSettingResource extends ModelResource
+class VkScanSettingResource extends ModelResource
 {
     protected string $model = ScanSetting::class;
 
@@ -50,7 +50,7 @@ class ScanSettingResource extends ModelResource
     protected function pages(): array
     {
         return [
-            ScanSettingIndexPage::class,
+            VkScanSettingIndexPage::class,
             FormPage::class,
             DetailPage::class,
         ];

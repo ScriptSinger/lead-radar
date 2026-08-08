@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\MoonShine\Resources\Vk;
 
+use App\Enums\ScanStatus;
 use App\Models\ScanRun;
 use App\Models\VkGroup;
 use MoonShine\Laravel\Fields\Relationships\BelongsTo;
@@ -24,7 +25,7 @@ use MoonShine\UI\Fields\Textarea;
  *
  * @extends ModelResource<ScanRun>
  */
-class ScanRunResource extends ModelResource
+class VkScanRunResource extends ModelResource
 {
     protected string $model = ScanRun::class;
 
@@ -55,17 +56,12 @@ class ScanRunResource extends ModelResource
             BelongsTo::make(
                 'Group',
                 'group',
-                formatted: static fn(VkGroup $g): string => $g->name,
+                formatted: static fn (VkGroup $g): string => $g->name,
                 resource: VkGroupResource::class,
             ),
             Text::make('Trigger', 'trigger'),
             Text::make('Status', 'status')->badge(
-                static fn(string $status): Color => match ($status) {
-                    'success' => Color::GREEN,
-                    'running' => Color::BLUE,
-                    'failed' => Color::RED,
-                    default => Color::GRAY,
-                }
+                static fn (string $status): Color => ScanStatus::colorFor($status)
             ),
             Number::make('Posts', 'posts_fetched'),
             Number::make('Leads +', 'leads_created'),
@@ -81,17 +77,10 @@ class ScanRunResource extends ModelResource
             ID::make(),
             BelongsTo::make('Group', 'group', resource: VkGroupResource::class),
             Text::make('Trigger', 'trigger'),
-            Text::make('Status', 'status')->badge(
-                static fn(string $status): Color => match ($status) {
-                    'success' => Color::GREEN,
-                    'running' => Color::BLUE,
-                    'failed' => Color::RED,
-                    default => Color::GRAY,
-                }
-            ),
+            Text::make('Status', 'status'),
             Number::make('Limit', 'limit'),
             Text::make('With comments', 'with_comments')->changePreview(
-                static fn($v) => $v ? 'yes' : 'no'
+                static fn ($v) => $v ? 'yes' : 'no'
             ),
             Number::make('Posts fetched', 'posts_fetched'),
             Number::make('Posts created', 'posts_created'),
@@ -124,14 +113,10 @@ class ScanRunResource extends ModelResource
             BelongsTo::make(
                 'Group',
                 'group',
-                formatted: static fn(VkGroup $g): string => $g->name,
+                formatted: static fn (VkGroup $g): string => $g->name,
                 resource: VkGroupResource::class,
             )->nullable(),
-            Select::make('Status', 'status')->options([
-                'running' => 'Running',
-                'success' => 'Success',
-                'failed' => 'Failed',
-            ])->nullable(),
+            Select::make('Status', 'status')->options(ScanStatus::options())->nullable(),
             Select::make('Trigger', 'trigger')->options([
                 'schedule' => 'Schedule',
                 'admin' => 'Admin',

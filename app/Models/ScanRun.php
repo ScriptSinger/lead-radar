@@ -2,17 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\ScanStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ScanRun extends Model
 {
-    public const STATUS_RUNNING = 'running';
-
-    public const STATUS_SUCCESS = 'success';
-
-    public const STATUS_FAILED = 'failed';
-
     protected $fillable = [
         'group_id',
         'trigger',
@@ -61,7 +56,7 @@ class ScanRun extends Model
         return self::query()->create([
             'group_id' => $group->id,
             'trigger' => $trigger,
-            'status' => self::STATUS_RUNNING,
+            'status' => ScanStatus::RUNNING->value,
             'with_comments' => $withComments,
             'limit' => $limit,
             'started_at' => now(),
@@ -73,7 +68,7 @@ class ScanRun extends Model
         $errors = $stats['errors'] ?? [];
 
         $this->fill([
-            'status' => self::STATUS_SUCCESS,
+            'status' => ScanStatus::SUCCESS->value,
             'posts_fetched' => $stats['posts_fetched'] ?? 0,
             'posts_created' => $stats['posts_created'] ?? 0,
             'posts_updated' => $stats['posts_updated'] ?? 0,
@@ -93,7 +88,7 @@ class ScanRun extends Model
     public function markFailed(
         string $message,
         int $durationMs,
-        string $status = self::STATUS_FAILED,
+        string $status = ScanStatus::FAILED->value,
         array $stats = [],
     ): void {
         $errors = $stats['errors'] ?? [];

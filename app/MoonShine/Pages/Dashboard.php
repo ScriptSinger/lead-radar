@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\MoonShine\Pages;
 
+use App\Enums\ScanStatus;
 use App\Models\Keyword;
 use App\Models\Lead;
 use App\Models\ScanRun;
@@ -60,7 +61,7 @@ class Dashboard extends Page
             : 'never';
 
         $failedRuns24h = ScanRun::query()
-            ->where('status', ScanRun::STATUS_FAILED)
+            ->where('status', ScanStatus::FAILED->value)
             ->where('started_at', '>=', now()->subDay())
             ->count();
 

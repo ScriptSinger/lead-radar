@@ -2,17 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\ScanStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TelegramScanRun extends Model
 {
-    public const STATUS_RUNNING = 'running';
-
-    public const STATUS_SUCCESS = 'success';
-
-    public const STATUS_FAILED = 'failed';
-
     protected $fillable = [
         'channel_id',
         'trigger',
@@ -52,7 +47,7 @@ class TelegramScanRun extends Model
         return self::query()->create([
             'channel_id' => $channel->id,
             'trigger' => $trigger,
-            'status' => self::STATUS_RUNNING,
+            'status' => ScanStatus::RUNNING->value,
             'limit' => $limit,
             'started_at' => now(),
         ]);
@@ -62,7 +57,7 @@ class TelegramScanRun extends Model
     {
         $errors = $stats['errors'] ?? [];
         $this->fill([
-            'status' => self::STATUS_SUCCESS,
+            'status' => ScanStatus::SUCCESS->value,
             'posts_fetched' => $stats['posts_fetched'] ?? 0,
             'posts_created' => $stats['posts_created'] ?? 0,
             'posts_updated' => $stats['posts_updated'] ?? 0,
@@ -78,7 +73,7 @@ class TelegramScanRun extends Model
     {
         $errors = $stats['errors'] ?? [];
         $this->fill([
-            'status' => self::STATUS_FAILED,
+            'status' => ScanStatus::FAILED->value,
             'posts_fetched' => $stats['posts_fetched'] ?? 0,
             'posts_created' => $stats['posts_created'] ?? 0,
             'posts_updated' => $stats['posts_updated'] ?? 0,

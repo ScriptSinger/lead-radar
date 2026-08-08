@@ -3,6 +3,7 @@
 namespace App\Services\Vk;
 
 use App\Contracts\VkContentSource;
+use App\Enums\ScanStatus;
 use App\Models\ScanRun;
 use App\Models\ScanSetting;
 use App\Models\VkComment;
@@ -280,7 +281,7 @@ class GroupScanner
         } catch (Throwable $e) {
             $stats['duration_ms'] = (int) round((microtime(true) - $startedAt) * 1000);
             $stats['errors'][] = $e->getMessage();
-            $run->markFailed($e->getMessage(), $stats['duration_ms'], ScanRun::STATUS_FAILED, $stats);
+            $run->markFailed($e->getMessage(), $stats['duration_ms'], ScanStatus::FAILED->value, $stats);
 
             Log::error('vk.scan.failed', [
                 'scan_run_id' => $run->id,

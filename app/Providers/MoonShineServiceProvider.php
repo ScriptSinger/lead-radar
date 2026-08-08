@@ -13,11 +13,11 @@ use App\MoonShine\Resources\Telegram\TelegramCommentResource;
 use App\MoonShine\Resources\Telegram\TelegramPostResource;
 use App\MoonShine\Resources\Telegram\TelegramScanRunResource;
 use App\MoonShine\Resources\Telegram\TelegramScanSettingResource;
-use App\MoonShine\Resources\Vk\ScanRunResource;
-use App\MoonShine\Resources\Vk\ScanSettingResource;
 use App\MoonShine\Resources\Vk\VkCommentResource;
 use App\MoonShine\Resources\Vk\VkGroupResource;
 use App\MoonShine\Resources\Vk\VkPostResource;
+use App\MoonShine\Resources\Vk\VkScanRunResource;
+use App\MoonShine\Resources\Vk\VkScanSettingResource;
 use Illuminate\Support\ServiceProvider;
 use MoonShine\Contracts\Core\DependencyInjection\CoreContract;
 use MoonShine\Laravel\DependencyInjection\MoonShineConfigurator;
@@ -43,8 +43,8 @@ class MoonShineServiceProvider extends ServiceProvider
                 TelegramScanSettingResource::class,
                 KeywordResource::class,
                 LeadResource::class,
-                ScanRunResource::class,
-                ScanSettingResource::class,
+                VkScanRunResource::class,
+                VkScanSettingResource::class,
             ])
             ->pages([
                 ...$core->getConfig()->getPages(),
