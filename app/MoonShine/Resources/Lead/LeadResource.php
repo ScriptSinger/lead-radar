@@ -90,7 +90,7 @@ class LeadResource extends ModelResource
             BelongsTo::make(
                 'Group',
                 'group',
-                formatted: static fn (VkGroup $g): string => $g->name,
+                formatted: static fn (VkGroup $g): string => $g->name ?? '—',
                 resource: VkGroupResource::class,
             ),
             Text::make('Text', 'text')->changePreview(
