@@ -14,6 +14,8 @@ use Throwable;
 /** Read-only MTProto source for posts in public broadcast channels. */
 class TelegramContentSource
 {
+    private ?API $client = null;
+
     public function __construct(private readonly TelegramMtprotoClient $mtproto) {}
 
     /**
@@ -169,6 +171,10 @@ class TelegramContentSource
 
     private function authorizedClient(): API
     {
+        if ($this->client !== null) {
+            return $this->client;
+        }
+
         try {
             $client = $this->mtproto->newClient();
         } catch (Throwable $e) {
@@ -181,6 +187,6 @@ class TelegramContentSource
             );
         }
 
-        return $client;
+        return $this->client = $client;
     }
 }
