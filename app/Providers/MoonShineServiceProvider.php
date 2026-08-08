@@ -18,6 +18,8 @@ use App\MoonShine\Resources\Vk\VkGroupResource;
 use App\MoonShine\Resources\Vk\VkPostResource;
 use App\MoonShine\Resources\Vk\VkScanRunResource;
 use App\MoonShine\Resources\Vk\VkScanSettingResource;
+use App\MoonShine\Resources\Workspace\WorkspaceResource;
+use App\MoonShine\Resources\WorkspaceInvitation\WorkspaceInvitationResource;
 use Illuminate\Support\ServiceProvider;
 use MoonShine\Contracts\Core\DependencyInjection\CoreContract;
 use MoonShine\Laravel\DependencyInjection\MoonShineConfigurator;
@@ -33,6 +35,8 @@ class MoonShineServiceProvider extends ServiceProvider
             ->resources([
                 MoonShineUserResource::class,
                 MoonShineUserRoleResource::class,
+                WorkspaceResource::class,
+                WorkspaceInvitationResource::class,
                 VkGroupResource::class,
                 VkPostResource::class,
                 VkCommentResource::class,

@@ -15,6 +15,8 @@ use App\MoonShine\Resources\Vk\VkGroupResource;
 use App\MoonShine\Resources\Vk\VkPostResource;
 use App\MoonShine\Resources\Vk\VkScanRunResource;
 use App\MoonShine\Resources\Vk\VkScanSettingResource;
+use App\MoonShine\Resources\Workspace\WorkspaceResource;
+use App\MoonShine\Resources\WorkspaceInvitation\WorkspaceInvitationResource;
 use MoonShine\ColorManager\ColorManager;
 use MoonShine\ColorManager\Palettes\PurplePalette;
 use MoonShine\Contracts\ColorManager\ColorManagerContract;
@@ -41,6 +43,11 @@ final class MoonShineLayout extends AppLayout
     {
         return [
             ...parent::menu(),
+
+            MenuGroup::make('Workspace', [
+                MenuItem::make(WorkspaceResource::class, 'Workspaces'),
+                MenuItem::make(WorkspaceInvitationResource::class, 'Invite users'),
+            ], 'building-office'),
 
             // Core lead pipeline (source-agnostic)
             MenuGroup::make('Leads', [

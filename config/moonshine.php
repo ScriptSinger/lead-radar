@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\EnsureActiveWorkspace;
+use App\Models\AdminUser;
 use App\MoonShine\Layouts\MoonShineLayout;
 use App\MoonShine\Pages\Dashboard;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -18,7 +20,6 @@ use MoonShine\Crud\Forms\LoginForm;
 use MoonShine\Laravel\Exceptions\MoonShineNotFoundException;
 use MoonShine\Laravel\Http\Middleware\Authenticate;
 use MoonShine\Laravel\Http\Middleware\ChangeLocale;
-use MoonShine\Laravel\Models\MoonshineUser;
 use MoonShine\Laravel\Pages\ErrorPage;
 use MoonShine\Laravel\Pages\LoginPage;
 use MoonShine\Laravel\Pages\ProfilePage;
@@ -74,9 +75,10 @@ return [
     'auth' => [
         'enabled' => true,
         'guard' => 'moonshine',
-        'model' => MoonshineUser::class,
+        'model' => AdminUser::class,
         'middleware' => [
             Authenticate::class,
+            EnsureActiveWorkspace::class,
         ],
         'pipelines' => [],
     ],
