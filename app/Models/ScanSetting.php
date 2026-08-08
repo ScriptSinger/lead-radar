@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToWorkspace;
 use App\Support\PostWindow;
+use App\Support\WorkspaceContext;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -14,7 +16,9 @@ use Illuminate\Support\Facades\Log;
  */
 class ScanSetting extends Model
 {
-    public const CACHE_KEY = 'scan_settings.current';
+    use BelongsToWorkspace;
+
+    public const CACHE_KEY = 'scan_settings.current.';
 
     public const CACHE_TTL_SECONDS = 30;
 
@@ -30,6 +34,7 @@ class ScanSetting extends Model
         'post_window',
         'last_dispatched_at',
         'notes',
+        'workspace_id',
     ];
 
     protected function casts(): array
@@ -67,11 +72,17 @@ class ScanSetting extends Model
         ];
     }
 
-    public static function current(): self
+    public static function current(?int $workspaceId = null): self
     {
-        $resolve = static function (): self {
+        $workspaceId ??= WorkspaceContext::id();
+
+        if ($workspaceId === null) {
+            throw new \LogicException('A workspace must be selected to resolve scan settings.');
+        }
+
+        $resolve = static function () use ($workspaceId): self {
             return self::query()->firstOrCreate(
-                ['name' => self::NAME_DEFAULT],
+                ['workspace_id' => $workspaceId, 'name' => self::NAME_DEFAULT],
                 self::defaultAttributes(),
             );
         };
@@ -82,12 +93,13 @@ class ScanSetting extends Model
         }
 
         // Cache only the id — never the Eloquent instance.
-        $cached = Cache::get(self::CACHE_KEY);
+        $cacheKey = self::CACHE_KEY.$workspaceId;
+        $cached = Cache::get($cacheKey);
         $id = is_numeric($cached) ? (int) $cached : null;
 
         if ($id === null) {
             $model = $resolve();
-            Cache::put(self::CACHE_KEY, $model->id, self::CACHE_TTL_SECONDS);
+            Cache::put($cacheKey, $model->id, self::CACHE_TTL_SECONDS);
 
             return $model;
         }
@@ -98,20 +110,24 @@ class ScanSetting extends Model
             return $model;
         }
 
-        self::forgetCache();
+        self::forgetCache($workspaceId);
 
         return $resolve();
     }
 
-    public static function forgetCache(): void
+    public static function forgetCache(?int $workspaceId = null): void
     {
-        Cache::forget(self::CACHE_KEY);
+        $workspaceId ??= WorkspaceContext::id();
+
+        if ($workspaceId !== null) {
+            Cache::forget(self::CACHE_KEY.$workspaceId);
+        }
     }
 
     protected static function booted(): void
     {
-        static::saved(static fn () => self::forgetCache());
-        static::deleted(static fn () => self::forgetCache());
+        static::saved(static fn (self $setting) => self::forgetCache($setting->workspace_id));
+        static::deleted(static fn (self $setting) => self::forgetCache($setting->workspace_id));
     }
 
     public function normalizedLimit(): int

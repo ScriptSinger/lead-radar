@@ -6,9 +6,11 @@ namespace App\MoonShine\Resources\Vk;
 
 use App\Models\ScanSetting;
 use App\Models\VkGroup;
+use App\MoonShine\Concerns\ScopesToActiveWorkspace;
 use App\MoonShine\Resources\Vk\Pages\VkScanSettingIndexPage;
 use App\Services\Vk\ScanSchedule;
 use App\Support\PostWindow;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Contracts\Core\PageContract;
 use MoonShine\Laravel\Pages\Crud\DetailPage;
 use MoonShine\Laravel\Pages\Crud\FormPage;
@@ -34,6 +36,8 @@ use MoonShine\UI\Fields\Textarea;
  */
 class VkScanSettingResource extends ModelResource
 {
+    use ScopesToActiveWorkspace;
+
     protected string $model = ScanSetting::class;
 
     protected string $title = 'Scan Settings';
@@ -106,8 +110,8 @@ class VkScanSettingResource extends ModelResource
 
     protected function formFields(): iterable
     {
-        $active = VkGroup::query()->where('active', true)->count();
-        $settings = ScanSetting::query()->orderBy('id')->first();
+        $active = $this->scopeToActiveWorkspace(VkGroup::query())->where('active', true)->count();
+        $settings = $this->scopeToActiveWorkspace(ScanSetting::query())->orderBy('id')->first();
         $waveHint = $settings
             ? sprintf(
                 '~%d min estimated wave for %d active groups (delay %ds). Keep interval ≥ wave length.',
@@ -166,6 +170,16 @@ class VkScanSettingResource extends ModelResource
                 Textarea::make('Notes', 'notes')->nullable(),
             ]),
         ];
+    }
+
+    protected function modifyQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
     }
 
     protected function detailFields(): iterable

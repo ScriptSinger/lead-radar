@@ -7,6 +7,7 @@ namespace App\MoonShine\Resources\Lead;
 use App\Models\Keyword;
 use App\Models\Lead;
 use App\Models\VkGroup;
+use App\MoonShine\Concerns\ScopesToActiveWorkspace;
 use App\MoonShine\Resources\Keyword\KeywordResource;
 use App\MoonShine\Resources\Lead\Pages\LeadIndexPage;
 use App\MoonShine\Resources\Vk\VkCommentResource;
@@ -37,6 +38,8 @@ use MoonShine\UI\Fields\Url;
  */
 class LeadResource extends ModelResource
 {
+    use ScopesToActiveWorkspace;
+
     protected string $model = Lead::class;
 
     protected string $title = 'Leads';
@@ -221,7 +224,7 @@ class LeadResource extends ModelResource
 
     public function countByStatus(?string $status): int
     {
-        $q = Lead::query();
+        $q = $this->scopeToActiveWorkspace(Lead::query());
 
         if ($status !== null) {
             $q->where('status', $status);
@@ -260,7 +263,7 @@ class LeadResource extends ModelResource
             return;
         }
 
-        Lead::query()->whereKey($id)->update(['status' => $status]);
+        $this->scopeToActiveWorkspace(Lead::query())->whereKey($id)->update(['status' => $status]);
     }
 
     private function bulkUpdateStatus(string $status): void
@@ -271,6 +274,16 @@ class LeadResource extends ModelResource
             return;
         }
 
-        Lead::query()->whereIn('id', $ids)->update(['status' => $status]);
+        $this->scopeToActiveWorkspace(Lead::query())->whereIn('id', $ids)->update(['status' => $status]);
+    }
+
+    protected function modifyQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
     }
 }

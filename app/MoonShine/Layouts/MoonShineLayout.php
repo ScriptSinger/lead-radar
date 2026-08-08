@@ -46,14 +46,18 @@ final class MoonShineLayout extends AppLayout
         $systemMenu = $user instanceof AdminUser && $user->isSystemAdmin()
             ? parent::menu()
             : [];
+        $workspaceMenu = [
+            MenuItem::make(WorkspaceResource::class, 'Workspaces'),
+        ];
+
+        if ($user instanceof AdminUser && $user->isSystemAdmin()) {
+            $workspaceMenu[] = MenuItem::make(WorkspaceInvitationResource::class, 'Invite users');
+        }
 
         return [
             ...$systemMenu,
 
-            MenuGroup::make('Workspace', [
-                MenuItem::make(WorkspaceResource::class, 'Workspaces'),
-                MenuItem::make(WorkspaceInvitationResource::class, 'Invite users'),
-            ], 'building-office'),
+            MenuGroup::make('Workspace', $workspaceMenu, 'building-office'),
 
             // Core lead pipeline (source-agnostic)
             MenuGroup::make('Leads', [

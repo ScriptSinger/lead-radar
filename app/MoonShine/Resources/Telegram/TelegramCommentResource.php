@@ -7,6 +7,7 @@ namespace App\MoonShine\Resources\Telegram;
 use App\Models\TelegramComment;
 use App\Models\TelegramPost;
 use App\MoonShine\Resources\Telegram\Pages\TelegramCommentIndexPage;
+use App\Support\WorkspaceContext;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Leeto\MoonShineTree\Resources\TreeResource;
@@ -125,10 +126,19 @@ class TelegramCommentResource extends TreeResource
 
     protected function modifyQueryBuilder(Builder $builder): Builder
     {
+        $workspaceId = WorkspaceContext::id();
+        abort_if($workspaceId === null, 403, 'Select a workspace first.');
+
         return $builder
+            ->whereHas('post.channel', static fn (Builder $query): Builder => $query->where('workspace_id', $workspaceId))
             ->orderByRaw('COALESCE(thread_root_id, id) ASC')
             ->orderBy('depth')
             ->orderBy('posted_at')
             ->orderBy('id');
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->modifyQueryBuilder($builder);
     }
 }

@@ -7,6 +7,8 @@ namespace App\MoonShine\Resources\Vk;
 use App\Enums\ScanStatus;
 use App\Models\ScanRun;
 use App\Models\VkGroup;
+use App\MoonShine\Concerns\ScopesToActiveWorkspace;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Laravel\Fields\Relationships\BelongsTo;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\Support\Enums\Action;
@@ -27,6 +29,8 @@ use MoonShine\UI\Fields\Textarea;
  */
 class VkScanRunResource extends ModelResource
 {
+    use ScopesToActiveWorkspace;
+
     protected string $model = ScanRun::class;
 
     protected string $title = 'Scan Runs';
@@ -47,6 +51,16 @@ class VkScanRunResource extends ModelResource
         return new ListOf(Action::class, [
             Action::VIEW,
         ]);
+    }
+
+    protected function modifyQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
     }
 
     protected function indexFields(): iterable

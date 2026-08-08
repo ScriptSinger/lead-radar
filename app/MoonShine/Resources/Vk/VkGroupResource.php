@@ -7,10 +7,12 @@ namespace App\MoonShine\Resources\Vk;
 use App\Jobs\ScanVkGroupJob;
 use App\Models\ScanSetting;
 use App\Models\VkGroup;
+use App\MoonShine\Concerns\ScopesToActiveWorkspace;
 use App\MoonShine\Resources\Vk\Pages\VkGroupDetailPage;
 use App\MoonShine\Resources\Vk\Pages\VkGroupFormPage;
 use App\MoonShine\Resources\Vk\Pages\VkGroupIndexPage;
 use App\Support\VkUrl;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Contracts\Core\PageContract;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\Support\Attributes\AsyncMethod;
@@ -27,6 +29,8 @@ use MoonShine\UI\Fields\Url;
  */
 class VkGroupResource extends ModelResource
 {
+    use ScopesToActiveWorkspace;
+
     protected string $model = VkGroup::class;
 
     protected string $title = 'VK Groups';
@@ -96,6 +100,16 @@ class VkGroupResource extends ModelResource
         ];
     }
 
+    protected function modifyQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
+    }
+
     /**
      * Queue a scan for this group (does not block the admin request).
      */
@@ -110,7 +124,7 @@ class VkGroupResource extends ModelResource
             return;
         }
 
-        $group = VkGroup::query()->find($id);
+        $group = $this->scopeToActiveWorkspace(VkGroup::query())->find($id);
 
         if ($group === null) {
             toast('Group not found', ToastType::ERROR);
@@ -124,7 +138,7 @@ class VkGroupResource extends ModelResource
             return;
         }
 
-        $settings = ScanSetting::current();
+        $settings = ScanSetting::current((int) $group->workspace_id);
         $limit = $settings->normalizedLimit();
         $withComments = (bool) $settings->with_comments;
 

@@ -37,7 +37,8 @@ class LeadMatcher
             return $stats;
         }
 
-        $keywords = $this->keywordsFor('post');
+        $post->loadMissing('group');
+        $keywords = $this->keywordsFor('post', (int) $post->group->workspace_id);
 
         foreach ($keywords as $keyword) {
             if (! $this->matchesKeyword($text, $keyword)) {
@@ -88,7 +89,8 @@ class LeadMatcher
             return $stats;
         }
 
-        $keywords = $this->keywordsFor('comment');
+        $post->loadMissing('group');
+        $keywords = $this->keywordsFor('comment', (int) $post->group->workspace_id);
 
         foreach ($keywords as $keyword) {
             if (! $this->matchesKeyword($text, $keyword)) {
@@ -126,7 +128,8 @@ class LeadMatcher
         if (trim($text) === '') {
             return $stats;
         }
-        foreach ($this->keywordsFor('post') as $keyword) {
+        $post->loadMissing('channel');
+        foreach ($this->keywordsFor('post', (int) $post->channel->workspace_id) as $keyword) {
             if (! $this->matchesKeyword($text, $keyword)) {
                 $stats['skipped']++;
 
@@ -150,21 +153,22 @@ class LeadMatcher
         if (! $post) {
             return $stats;
         }
-        foreach ($this->keywordsFor('comment') as $keyword) {
+        $post->loadMissing('channel');
+        foreach ($this->keywordsFor('comment', (int) $post->channel->workspace_id) as $keyword) {
             if (! $this->matchesKeyword($text, $keyword)) {
                 $stats['skipped']++;
 
                 continue;
             }
             $key = "telegram:c:{$comment->id}:k:{$keyword->id}";
-            $attributes = ['platform' => 'telegram', 'source_entity_type' => 'comment', 'source_entity_id' => $comment->id, 'channel_or_group_id' => $post->channel_id, 'source_type' => 'comment', 'post_id' => null, 'comment_id' => null, 'group_id' => null, 'keyword_id' => $keyword->id, 'text' => $text, 'url' => $post->url, 'score' => $this->scoreFor($keyword)];
+            $attributes = ['workspace_id' => $post->channel->workspace_id, 'platform' => 'telegram', 'source_entity_type' => 'comment', 'source_entity_id' => $comment->id, 'channel_or_group_id' => $post->channel_id, 'source_type' => 'comment', 'post_id' => null, 'comment_id' => null, 'group_id' => null, 'keyword_id' => $keyword->id, 'text' => $text, 'url' => $post->url, 'score' => $this->scoreFor($keyword)];
             try {
                 Lead::query()->create([...$attributes, 'dedupe_key' => $key, 'status' => 'new']);
                 $stats['created']++;
             } catch (QueryException $e) {
                 if (! $this->isDuplicateKey($e)) {
                     throw $e;
-                } Lead::query()->where('dedupe_key', $key)->firstOrFail()->fill($attributes)->save();
+                } Lead::query()->where('workspace_id', $attributes['workspace_id'])->where('dedupe_key', $key)->firstOrFail()->fill($attributes)->save();
                 $stats['updated']++;
             }
         }
@@ -262,9 +266,10 @@ class LeadMatcher
     /**
      * @return Collection<int, Keyword>
      */
-    private function keywordsFor(string $source): Collection
+    private function keywordsFor(string $source, int $workspaceId): Collection
     {
         return Keyword::query()
+            ->where('workspace_id', $workspaceId)
             ->where(function ($q) use ($source) {
                 $q->where('type', 'both')->orWhere('type', $source);
             })
@@ -285,6 +290,7 @@ class LeadMatcher
         $key = $this->dedupeKey($sourceType, (int) $keyword->id, (int) $post->id, $commentId);
 
         $attributes = [
+            'workspace_id' => $post->group->workspace_id,
             'platform' => 'vk',
             'source_entity_type' => $sourceType,
             'source_entity_id' => $commentId ?? $post->id,
@@ -319,7 +325,7 @@ class LeadMatcher
 
         // The conflicting row is committed before the duplicate-key error is
         // returned, so this lookup is safe. Keep the operator's status intact.
-        $existing = Lead::query()->where('dedupe_key', $key)->firstOrFail();
+        $existing = Lead::query()->where('workspace_id', $attributes['workspace_id'])->where('dedupe_key', $key)->firstOrFail();
         $existing->fill([
             'text' => $attributes['text'],
             'url' => $attributes['url'],
@@ -334,6 +340,7 @@ class LeadMatcher
     {
         $key = $this->dedupeKey('post', (int) $keyword->id, (int) $post->id, null, 'telegram');
         $attributes = [
+            'workspace_id' => $post->channel->workspace_id,
             'platform' => 'telegram',
             'source_entity_type' => 'post',
             'source_entity_id' => $post->id,
@@ -352,7 +359,7 @@ class LeadMatcher
                 throw $e;
             }
         }
-        Lead::query()->where('dedupe_key', $key)->firstOrFail()->fill($attributes)->save();
+        Lead::query()->where('workspace_id', $attributes['workspace_id'])->where('dedupe_key', $key)->firstOrFail()->fill($attributes)->save();
 
         return false;
     }

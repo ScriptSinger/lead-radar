@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use App\Enums\ScanStatus;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ScanRun extends Model
 {
+    use BelongsToWorkspace;
+
     protected $fillable = [
         'group_id',
         'trigger',
@@ -29,6 +32,7 @@ class ScanRun extends Model
         'duration_ms',
         'started_at',
         'finished_at',
+        'workspace_id',
     ];
 
     protected function casts(): array
@@ -54,6 +58,7 @@ class ScanRun extends Model
         bool $withComments,
     ): self {
         return self::query()->create([
+            'workspace_id' => $group->workspace_id,
             'group_id' => $group->id,
             'trigger' => $trigger,
             'status' => ScanStatus::RUNNING->value,

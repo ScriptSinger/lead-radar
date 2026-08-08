@@ -7,7 +7,6 @@ namespace App\MoonShine\Resources\WorkspaceInvitation;
 use App\Enums\WorkspaceMemberRole;
 use App\Mail\WorkspaceInvitationMail;
 use App\Models\AdminUser;
-use App\Models\Workspace;
 use App\Models\WorkspaceInvitation;
 use App\MoonShine\Resources\Workspace\WorkspaceResource;
 use App\MoonShine\Resources\WorkspaceInvitation\Pages\WorkspaceInvitationIndexPage;
@@ -77,7 +76,6 @@ class WorkspaceInvitationResource extends ModelResource
         return [
             ID::make(),
             BelongsTo::make('Workspace', 'workspace', resource: WorkspaceResource::class)
-                ->valuesQuery(fn (Builder $query): Builder => $this->manageableWorkspaces($query))
                 ->required(),
             Email::make('Email', 'email')->required(),
             $this->roleField()->default(WorkspaceMemberRole::Member->value),
@@ -103,13 +101,13 @@ class WorkspaceInvitationResource extends ModelResource
      */
     protected function beforeCreating(DataWrapperContract $item): DataWrapperContract
     {
+        abort_unless($this->isSystemAdmin(), 403);
+
         $invitation = $item->getOriginal();
         $invitation->plainToken = Str::random(64);
         $invitation->token = hash('sha256', $invitation->plainToken);
         $invitation->expires_at = now()->addHours(max(1, (int) config('workspaces.invitation_expiration_hours')));
         $invitation->invited_by = auth('moonshine')->id();
-
-        abort_unless($this->canManageWorkspaceId((int) $invitation->workspace_id), 403);
 
         return $item;
     }
@@ -130,7 +128,9 @@ class WorkspaceInvitationResource extends ModelResource
     #[AsyncMethod]
     public function resend(): void
     {
-        $invitation = $this->scopeToCurrentUser(WorkspaceInvitation::query())->find((int) request('resourceItem'));
+        abort_unless($this->isSystemAdmin(), 403);
+
+        $invitation = WorkspaceInvitation::query()->find((int) request('resourceItem'));
 
         if ($invitation === null || $invitation->accepted_at !== null) {
             toast('Invitation cannot be resent', ToastType::ERROR);
@@ -159,23 +159,7 @@ class WorkspaceInvitationResource extends ModelResource
 
     protected function isCan(Ability $ability): bool
     {
-        $user = auth('moonshine')->user();
-
-        if (! $user instanceof AdminUser || $user->isSystemAdmin()) {
-            return parent::isCan($ability);
-        }
-
-        if ($ability === Ability::CREATE) {
-            return $this->manageableWorkspaces(Workspace::query())->exists();
-        }
-
-        if ($ability === Ability::VIEW_ANY) {
-            return $this->manageableWorkspaces(Workspace::query())->exists();
-        }
-
-        $invitation = $this->getItem()?->getOriginal();
-
-        return $invitation instanceof WorkspaceInvitation && $this->canManageWorkspaceId($invitation->workspace_id);
+        return $this->isSystemAdmin() && parent::isCan($ability);
     }
 
     /**
@@ -199,47 +183,13 @@ class WorkspaceInvitationResource extends ModelResource
 
     private function scopeToCurrentUser(Builder $builder): Builder
     {
-        $user = auth('moonshine')->user();
-
-        if (! $user instanceof AdminUser || $user->isSystemAdmin()) {
-            return $builder;
-        }
-
-        return $builder->whereHas(
-            'workspace.members',
-            static fn (Builder $query): Builder => $query
-                ->whereKey($user->id)
-                ->whereIn('workspace_user.role', [
-                    WorkspaceMemberRole::Owner->value,
-                    WorkspaceMemberRole::Admin->value,
-                ]),
-        );
+        return $this->isSystemAdmin() ? $builder : $builder->whereRaw('1 = 0');
     }
 
-    private function manageableWorkspaces(Builder $builder): Builder
+    private function isSystemAdmin(): bool
     {
         $user = auth('moonshine')->user();
 
-        if (! $user instanceof AdminUser || $user->isSystemAdmin()) {
-            return $builder;
-        }
-
-        return $builder->whereHas(
-            'members',
-            static fn (Builder $query): Builder => $query
-                ->whereKey($user->id)
-                ->whereIn('workspace_user.role', [
-                    WorkspaceMemberRole::Owner->value,
-                    WorkspaceMemberRole::Admin->value,
-                ]),
-        );
-    }
-
-    private function canManageWorkspaceId(int $workspaceId): bool
-    {
-        $workspace = Workspace::query()->find($workspaceId);
-        $user = auth('moonshine')->user();
-
-        return $workspace !== null && $user instanceof AdminUser && $user->canManageWorkspace($workspace);
+        return $user instanceof AdminUser && $user->isSystemAdmin();
     }
 }

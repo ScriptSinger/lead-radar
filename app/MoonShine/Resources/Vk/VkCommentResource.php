@@ -8,6 +8,7 @@ use App\Models\VkComment;
 use App\Models\VkPost;
 use App\MoonShine\Resources\Lead\LeadResource;
 use App\MoonShine\Resources\Vk\Pages\VkCommentIndexPage;
+use App\Support\WorkspaceContext;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Leeto\MoonShineTree\Resources\TreeResource;
@@ -241,10 +242,19 @@ class VkCommentResource extends TreeResource
      */
     protected function modifyQueryBuilder(Builder $builder): Builder
     {
+        $workspaceId = WorkspaceContext::id();
+        abort_if($workspaceId === null, 403, 'Select a workspace first.');
+
         return $builder
+            ->whereHas('post.group', static fn (Builder $query): Builder => $query->where('workspace_id', $workspaceId))
             ->orderByRaw('COALESCE(thread_root_id, id) ASC')
             ->orderBy('depth', 'ASC')
             ->orderBy('posted_at', 'ASC')
             ->orderBy('id', 'ASC');
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->modifyQueryBuilder($builder);
     }
 }

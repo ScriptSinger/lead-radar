@@ -2,16 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VkGroup extends Model
 {
+    use BelongsToWorkspace;
+
     protected $fillable = [
         'url',
         'name',
         'active',
         'last_scan_at',
+        'workspace_id',
     ];
 
     protected function casts(): array

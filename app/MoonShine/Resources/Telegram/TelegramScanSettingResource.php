@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\MoonShine\Resources\Telegram;
 
 use App\Models\TelegramScanSetting;
+use App\MoonShine\Concerns\ScopesToActiveWorkspace;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\Support\Enums\SortDirection;
 use MoonShine\UI\Fields\Date;
@@ -16,6 +18,8 @@ use MoonShine\UI\Fields\Textarea;
 /** @extends ModelResource<TelegramScanSetting> */
 class TelegramScanSettingResource extends ModelResource
 {
+    use ScopesToActiveWorkspace;
+
     protected string $model = TelegramScanSetting::class;
 
     protected string $title = 'Telegram Scan Settings';
@@ -52,5 +56,15 @@ class TelegramScanSettingResource extends ModelResource
             Date::make('Last dispatched', 'last_dispatched_at')->withTime(),
             Textarea::make('Notes', 'notes'),
         ];
+    }
+
+    protected function modifyQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
     }
 }

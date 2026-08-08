@@ -10,6 +10,7 @@ use App\MoonShine\Resources\Lead\LeadResource;
 use App\MoonShine\Resources\Vk\Pages\VkPostDetailPage;
 use App\MoonShine\Resources\Vk\Pages\VkPostFormPage;
 use App\MoonShine\Resources\Vk\Pages\VkPostIndexPage;
+use App\Support\WorkspaceContext;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Contracts\Core\PageContract;
 use MoonShine\Laravel\Fields\Relationships\BelongsTo;
@@ -47,7 +48,17 @@ class VkPostResource extends ModelResource
      */
     protected function modifyQueryBuilder(Builder $builder): Builder
     {
-        return $builder->withCount('comments');
+        $workspaceId = WorkspaceContext::id();
+        abort_if($workspaceId === null, 403, 'Select a workspace first.');
+
+        return $builder
+            ->whereHas('group', static fn (Builder $query): Builder => $query->where('workspace_id', $workspaceId))
+            ->withCount('comments');
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->modifyQueryBuilder($builder);
     }
 
     protected function indexFields(): iterable

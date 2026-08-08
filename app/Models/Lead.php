@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Lead extends Model
 {
+    use BelongsToWorkspace;
+
     protected $fillable = [
         'platform',
         'source_entity_type',
@@ -22,6 +25,7 @@ class Lead extends Model
         'score',
         'status',
         'dedupe_key',
+        'workspace_id',
     ];
 
     protected function casts(): array

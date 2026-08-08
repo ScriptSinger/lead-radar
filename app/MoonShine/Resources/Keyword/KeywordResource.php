@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\MoonShine\Resources\Keyword;
 
 use App\Models\Keyword;
+use App\MoonShine\Concerns\ScopesToActiveWorkspace;
 use App\MoonShine\Resources\Lead\LeadResource;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Laravel\Fields\Relationships\HasMany;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\Support\Enums\SortDirection;
@@ -18,6 +20,8 @@ use MoonShine\UI\Fields\Text;
  */
 class KeywordResource extends ModelResource
 {
+    use ScopesToActiveWorkspace;
+
     protected string $model = Keyword::class;
 
     protected string $title = 'Keywords';
@@ -84,6 +88,16 @@ class KeywordResource extends ModelResource
             Text::make('Score', 'score'),
             HasMany::make('Leads', 'leads', resource: LeadResource::class),
         ];
+    }
+
+    protected function modifyQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
     }
 
     protected function filters(): iterable

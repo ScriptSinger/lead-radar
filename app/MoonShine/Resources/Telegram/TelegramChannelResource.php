@@ -6,6 +6,8 @@ namespace App\MoonShine\Resources\Telegram;
 
 use App\Jobs\ScanTelegramChannelJob;
 use App\Models\TelegramChannel;
+use App\MoonShine\Concerns\ScopesToActiveWorkspace;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\Support\Attributes\AsyncMethod;
 use MoonShine\Support\Enums\SortDirection;
@@ -18,6 +20,8 @@ use MoonShine\UI\Fields\Url;
 /** @extends ModelResource<TelegramChannel> */
 class TelegramChannelResource extends ModelResource
 {
+    use ScopesToActiveWorkspace;
+
     protected string $model = TelegramChannel::class;
 
     protected string $title = 'Telegram Channels';
@@ -54,10 +58,20 @@ class TelegramChannelResource extends ModelResource
         ];
     }
 
+    protected function modifyQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
+    }
+
     #[AsyncMethod]
     public function scanNow(): void
     {
-        $c = TelegramChannel::query()->find((int) request('resourceItem'));
+        $c = $this->scopeToActiveWorkspace(TelegramChannel::query())->find((int) request('resourceItem'));
         if ($c?->active) {
             ScanTelegramChannelJob::dispatch($c->id, (int) config('services.telegram.scan.limit', 20), 'admin');
             toast('Telegram scan queued');

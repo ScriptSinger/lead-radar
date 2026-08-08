@@ -7,6 +7,7 @@ namespace App\MoonShine\Resources\Telegram;
 use App\Models\TelegramChannel;
 use App\Models\TelegramPost;
 use App\MoonShine\Resources\Telegram\Pages\TelegramPostDetailPage;
+use App\Support\WorkspaceContext;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Laravel\Fields\Relationships\BelongsTo;
 use MoonShine\Laravel\Pages\Crud\FormPage;
@@ -38,7 +39,17 @@ class TelegramPostResource extends ModelResource
 
     protected function modifyQueryBuilder(Builder $builder): Builder
     {
-        return $builder->withCount('comments');
+        $workspaceId = WorkspaceContext::id();
+        abort_if($workspaceId === null, 403, 'Select a workspace first.');
+
+        return $builder
+            ->whereHas('channel', static fn (Builder $query): Builder => $query->where('workspace_id', $workspaceId))
+            ->withCount('comments');
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->modifyQueryBuilder($builder);
     }
 
     protected function pages(): array

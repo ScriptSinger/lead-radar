@@ -7,6 +7,8 @@ namespace App\MoonShine\Resources\Telegram;
 use App\Enums\ScanStatus;
 use App\Models\TelegramChannel;
 use App\Models\TelegramScanRun;
+use App\MoonShine\Concerns\ScopesToActiveWorkspace;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use MoonShine\Laravel\Fields\Relationships\BelongsTo;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\Support\Enums\Action;
@@ -22,6 +24,8 @@ use MoonShine\UI\Fields\Text;
 /** @extends ModelResource<TelegramScanRun> */
 class TelegramScanRunResource extends ModelResource
 {
+    use ScopesToActiveWorkspace;
+
     protected string $model = TelegramScanRun::class;
 
     protected string $title = 'Telegram Scan Runs';
@@ -42,6 +46,16 @@ class TelegramScanRunResource extends ModelResource
         return new ListOf(Action::class, [
             Action::VIEW,
         ]);
+    }
+
+    protected function modifyQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
+    }
+
+    protected function modifyItemQueryBuilder(Builder $builder): Builder
+    {
+        return $this->scopeToActiveWorkspace($builder);
     }
 
     protected function indexFields(): iterable

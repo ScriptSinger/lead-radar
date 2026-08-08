@@ -15,7 +15,13 @@ class ScanSchedule
 {
     public function tick(): void
     {
-        $settings = ScanSetting::current();
+        foreach (ScanSetting::query()->orderBy('workspace_id')->get() as $settings) {
+            $this->tickWorkspace($settings);
+        }
+    }
+
+    private function tickWorkspace(ScanSetting $settings): void
+    {
 
         if (! $settings->schedule_enabled) {
             Log::debug('vk.schedule.tick_disabled');
@@ -32,7 +38,7 @@ class ScanSchedule
             return;
         }
 
-        $this->dispatchWave(trigger: 'schedule', markDispatched: true);
+        $this->dispatchWave((int) $settings->workspace_id, trigger: 'schedule', markDispatched: true);
     }
 
     /**
@@ -42,16 +48,18 @@ class ScanSchedule
      */
     public function dispatchNow(string $trigger = 'admin'): array
     {
-        return $this->dispatchWave(trigger: $trigger, markDispatched: true);
+        $settings = ScanSetting::current();
+
+        return $this->dispatchWave((int) $settings->workspace_id, trigger: $trigger, markDispatched: true);
     }
 
     /**
      * @return array{dispatched: bool, active_groups: int, limit: int, with_comments: bool}
      */
-    private function dispatchWave(string $trigger, bool $markDispatched): array
+    private function dispatchWave(int $workspaceId, string $trigger, bool $markDispatched): array
     {
-        $settings = ScanSetting::current();
-        $active = VkGroup::query()->where('active', true)->count();
+        $settings = ScanSetting::current($workspaceId);
+        $active = VkGroup::query()->where('workspace_id', $workspaceId)->where('active', true)->count();
         $limit = $settings->normalizedLimit();
         $withComments = (bool) $settings->with_comments;
 
@@ -75,6 +83,7 @@ class ScanSchedule
             $withComments,
             null,
             $trigger,
+            $workspaceId,
         );
 
         if ($markDispatched) {

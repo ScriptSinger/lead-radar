@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use App\Enums\ScanStatus;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TelegramScanRun extends Model
 {
+    use BelongsToWorkspace;
+
     protected $fillable = [
         'channel_id',
         'trigger',
@@ -25,6 +28,7 @@ class TelegramScanRun extends Model
         'duration_ms',
         'started_at',
         'finished_at',
+        'workspace_id',
     ];
 
     protected function casts(): array
@@ -45,6 +49,7 @@ class TelegramScanRun extends Model
     public static function start(TelegramChannel $channel, string $trigger, int $limit): self
     {
         return self::query()->create([
+            'workspace_id' => $channel->workspace_id,
             'channel_id' => $channel->id,
             'trigger' => $trigger,
             'status' => ScanStatus::RUNNING->value,

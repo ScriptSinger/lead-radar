@@ -60,7 +60,7 @@ class GroupScanner
         $run = ScanRun::start($group, $trigger, $limit, $withComments);
 
         $windowMode = PostWindow::mode(
-            $postWindow ?? ScanSetting::current()->normalizedPostWindow()
+            $postWindow ?? ScanSetting::current((int) $group->workspace_id)->normalizedPostWindow()
         );
         // Capture cutoff before last_scan_at is updated at the end of a successful run
         $windowCutoff = PostWindow::cutoff($group, $windowMode);

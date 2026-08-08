@@ -11,14 +11,20 @@ class TelegramScanSchedule
 {
     public function tick(): void
     {
-        $settings = TelegramScanSetting::current();
+        TelegramScanSetting::query()->orderBy('workspace_id')->each(
+            fn (TelegramScanSetting $settings): void => $this->tickWorkspace($settings),
+        );
+    }
+
+    private function tickWorkspace(TelegramScanSetting $settings): void
+    {
         if (! $settings->schedule_enabled) {
             Log::debug('telegram.schedule.tick_disabled');
 
             return;
         }
 
-        $activeChannels = TelegramChannel::query()->where('active', true)->count();
+        $activeChannels = TelegramChannel::query()->where('workspace_id', $settings->workspace_id)->where('active', true)->count();
         if ($activeChannels === 0) {
             Log::warning('telegram.schedule.no_active_channels');
 
@@ -34,7 +40,7 @@ class TelegramScanSchedule
             return;
         }
 
-        DispatchTelegramChannelScansJob::dispatch();
+        DispatchTelegramChannelScansJob::dispatch(workspaceId: (int) $settings->workspace_id);
         $settings->forceFill(['last_dispatched_at' => now()])->save();
 
         Log::info('telegram.schedule.dispatched', [

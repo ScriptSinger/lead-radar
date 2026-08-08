@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TelegramChannel extends Model
 {
+    use BelongsToWorkspace;
+
     protected $fillable = [
         'url',
         'username',
@@ -16,6 +19,7 @@ class TelegramChannel extends Model
         'active',
         'last_message_id',
         'last_scan_at',
+        'workspace_id',
     ];
 
     protected $hidden = [

@@ -29,6 +29,7 @@ class DispatchVkGroupScansJob implements ShouldQueue
         public ?bool $withComments = null,
         public ?int $onlyGroupId = null,
         ?string $trigger = null,
+        public ?int $workspaceId = null,
     ) {
         if ($trigger !== null) {
             $this->trigger = $trigger;
@@ -39,13 +40,24 @@ class DispatchVkGroupScansJob implements ShouldQueue
 
     public function handle(): void
     {
-        $settings = ScanSetting::current();
+        $workspaceId = $this->workspaceId
+            ?? ($this->onlyGroupId !== null ? VkGroup::query()->whereKey($this->onlyGroupId)->value('workspace_id') : null)
+            ?? ScanSetting::query()->value('workspace_id');
+
+        if ($workspaceId === null) {
+            Log::warning('vk.scan.dispatch.workspace_missing');
+
+            return;
+        }
+
+        $settings = ScanSetting::current((int) $workspaceId);
         $limit = max(1, min(30, $this->limit ?? $settings->normalizedLimit()));
         $withComments = $this->withComments ?? (bool) $settings->with_comments;
         $delaySeconds = $settings->normalizedGroupDelaySeconds();
         $trigger = $this->trigger ?: 'schedule';
 
         $query = VkGroup::query()
+            ->where('workspace_id', $workspaceId)
             ->where('active', true)
             ->orderBy('id');
 
