@@ -46,6 +46,7 @@ class WorkspaceInvitationTest extends TestCase
         $client = AdminUser::query()->where('email', 'client@example.com')->sole();
 
         $this->assertTrue(Hash::check('client-password', $client->password));
+        $this->assertSame('Client', $client->moonshineUserRole->name);
         $this->assertTrue($workspace->fresh()->owner->is($client));
         $this->assertSame(WorkspaceMemberRole::Owner->value, $workspace->members()->findOrFail($client->id)->pivot->role);
         $this->assertNotNull($invitation->fresh()->accepted_at);

@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
+use MoonShine\Laravel\Models\MoonshineUserRole;
 
 class WorkspaceInvitationController extends Controller
 {
@@ -49,6 +50,10 @@ class WorkspaceInvitationController extends Controller
                     'email' => $invitation->email,
                     'name' => $data['name'],
                     'password' => Hash::make($data['password']),
+                    'moonshine_user_role_id' => MoonshineUserRole::query()
+                        ->where('name', 'Client')
+                        ->sole()
+                        ->id,
                 ]);
             }
 
