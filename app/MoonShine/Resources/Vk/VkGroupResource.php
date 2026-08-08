@@ -14,6 +14,7 @@ use App\Support\VkUrl;
 use MoonShine\Contracts\Core\PageContract;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\Support\Attributes\AsyncMethod;
+use MoonShine\Support\Enums\SortDirection;
 use MoonShine\Support\Enums\ToastType;
 use MoonShine\UI\Fields\Date;
 use MoonShine\UI\Fields\ID;
@@ -33,6 +34,10 @@ class VkGroupResource extends ModelResource
     /** Shown in BelongsTo labels on related resources */
     protected string $column = 'name';
 
+    protected string $sortColumn = 'name';
+
+    protected SortDirection $sortDirection = SortDirection::ASC;
+
     /**
      * @return list<class-string<PageContract>>
      */
@@ -51,7 +56,7 @@ class VkGroupResource extends ModelResource
             ID::make()->sortable(),
             Text::make('Name', 'name')->sortable(),
             Url::make('Url', 'url')->blank(),
-            Switcher::make('Active', 'active'),
+            Switcher::make('Active', 'active')->sortable(),
             Date::make('Last scan', 'last_scan_at')->format('Y-m-d H:i')->sortable(),
         ];
     }
@@ -87,6 +92,7 @@ class VkGroupResource extends ModelResource
             Text::make('Name', 'name')->placeholder('Search by group name'),
             Text::make('URL', 'url')->placeholder('Search by VK URL'),
             Switcher::make('Active', 'active')->nullable(),
+            Date::make('Last scan', 'last_scan_at')->nullable(),
         ];
     }
 

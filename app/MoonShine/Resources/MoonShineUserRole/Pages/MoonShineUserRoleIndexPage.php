@@ -22,6 +22,13 @@ final class MoonShineUserRoleIndexPage extends IndexPage
     {
         return [
             ID::make()->sortable(),
+            Text::make(__('moonshine::ui.resource.role_name'), 'name')->sortable(),
+        ];
+    }
+
+    protected function filters(): iterable
+    {
+        return [
             Text::make(__('moonshine::ui.resource.role_name'), 'name'),
         ];
     }

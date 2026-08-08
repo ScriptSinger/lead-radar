@@ -226,6 +226,16 @@ class VkCommentResource extends TreeResource
         ];
     }
 
+    protected function filters(): iterable
+    {
+        return [
+            $this->postBelongsTo()->nullable(),
+            Number::make('Author ID', 'author_id')->nullable(),
+            Textarea::make('Text', 'text')->placeholder('Search comment text'),
+            Date::make('Posted on', 'posted_at')->nullable(),
+        ];
+    }
+
     /**
      * Prefer roots with children loaded under them; siblings by posted_at.
      */

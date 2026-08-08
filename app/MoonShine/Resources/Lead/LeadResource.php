@@ -190,6 +190,8 @@ class LeadResource extends ModelResource
                 formatted: static fn (Keyword $k): string => $k->word,
                 resource: KeywordResource::class,
             )->nullable(),
+            Text::make('Text', 'text')->placeholder('Search lead text'),
+            Date::make('Found on', 'created_at')->nullable(),
         ];
     }
 

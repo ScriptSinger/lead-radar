@@ -6,6 +6,7 @@ namespace App\MoonShine\Resources\Telegram;
 
 use App\Models\TelegramScanSetting;
 use MoonShine\Laravel\Resources\ModelResource;
+use MoonShine\Support\Enums\SortDirection;
 use MoonShine\UI\Fields\Date;
 use MoonShine\UI\Fields\ID;
 use MoonShine\UI\Fields\Number;
@@ -21,17 +22,21 @@ class TelegramScanSettingResource extends ModelResource
 
     protected string $column = 'name';
 
+    protected string $sortColumn = 'id';
+
+    protected SortDirection $sortDirection = SortDirection::ASC;
+
     protected function indexFields(): iterable
     {
         return [
-            ID::make(),
-            Switcher::make('Schedule', 'schedule_enabled'),
-            Number::make('Every min', 'interval_minutes'),
-            Number::make('Delay s', 'channel_delay_seconds'),
-            Number::make('Posts', 'scan_limit'),
-            Switcher::make('Comments', 'with_comments'),
-            Number::make('Comments limit', 'comments_limit'),
-            Date::make('Last dispatch', 'last_dispatched_at')->format('Y-m-d H:i'),
+            ID::make()->sortable(),
+            Switcher::make('Schedule', 'schedule_enabled')->sortable(),
+            Number::make('Every min', 'interval_minutes')->sortable(),
+            Number::make('Delay s', 'channel_delay_seconds')->sortable(),
+            Number::make('Posts', 'scan_limit')->sortable(),
+            Switcher::make('Comments', 'with_comments')->sortable(),
+            Number::make('Comments limit', 'comments_limit')->sortable(),
+            Date::make('Last dispatch', 'last_dispatched_at')->format('Y-m-d H:i')->sortable(),
         ];
     }
 

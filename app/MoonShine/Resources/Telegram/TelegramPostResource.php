@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\MoonShine\Resources\Telegram;
 
+use App\Models\TelegramChannel;
 use App\Models\TelegramPost;
 use App\MoonShine\Resources\Telegram\Pages\TelegramPostDetailPage;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use MoonShine\Laravel\Fields\Relationships\BelongsTo;
 use MoonShine\Laravel\Pages\Crud\FormPage;
 use MoonShine\Laravel\Pages\Crud\IndexPage;
 use MoonShine\Laravel\Resources\ModelResource;
+use MoonShine\Support\Enums\SortDirection;
 use MoonShine\UI\Fields\Date;
 use MoonShine\UI\Fields\ID;
 use MoonShine\UI\Fields\Number;
@@ -29,6 +32,10 @@ class TelegramPostResource extends ModelResource
 
     protected array $with = ['channel'];
 
+    protected string $sortColumn = 'posted_at';
+
+    protected SortDirection $sortDirection = SortDirection::DESC;
+
     protected function modifyQueryBuilder(Builder $builder): Builder
     {
         return $builder->withCount('comments');
@@ -41,7 +48,7 @@ class TelegramPostResource extends ModelResource
 
     protected function indexFields(): iterable
     {
-        return [ID::make()->sortable(), Text::make('Channel', 'channel.name'), Text::make('Message ID', 'telegram_message_id'), Text::make('Text', 'text'), Number::make('Comments', 'comments_count')->sortable(), Switcher::make('Media', 'has_media'), Url::make('URL', 'url')->blank(), Date::make('Posted', 'posted_at')->format('Y-m-d H:i')];
+        return [ID::make()->sortable(), BelongsTo::make('Channel', 'channel', formatted: static fn (TelegramChannel $channel): string => $channel->name, resource: TelegramChannelResource::class)->sortable(), Number::make('Message ID', 'telegram_message_id')->sortable(), Text::make('Text', 'text'), Number::make('Comments', 'comments_count')->sortable(), Switcher::make('Media', 'has_media')->sortable(), Url::make('URL', 'url')->blank(), Date::make('Posted', 'posted_at')->format('Y-m-d H:i')->sortable()];
     }
 
     protected function formFields(): iterable
@@ -51,6 +58,17 @@ class TelegramPostResource extends ModelResource
 
     protected function detailFields(): iterable
     {
-        return [ID::make(), Text::make('Channel', 'channel.name'), Text::make('Message ID', 'telegram_message_id'), Textarea::make('Text', 'text'), Url::make('URL', 'url')->blank(), Date::make('Posted', 'posted_at')->format('Y-m-d H:i:s')];
+        return [ID::make(), BelongsTo::make('Channel', 'channel', resource: TelegramChannelResource::class), Number::make('Message ID', 'telegram_message_id'), Textarea::make('Text', 'text'), Url::make('URL', 'url')->blank(), Date::make('Posted', 'posted_at')->format('Y-m-d H:i:s')];
+    }
+
+    protected function filters(): iterable
+    {
+        return [
+            BelongsTo::make('Channel', 'channel', formatted: static fn (TelegramChannel $channel): string => $channel->name, resource: TelegramChannelResource::class)->nullable(),
+            Number::make('Message ID', 'telegram_message_id')->nullable(),
+            Text::make('Text', 'text')->placeholder('Search post text'),
+            Switcher::make('Media', 'has_media')->nullable(),
+            Date::make('Posted on', 'posted_at')->nullable(),
+        ];
     }
 }

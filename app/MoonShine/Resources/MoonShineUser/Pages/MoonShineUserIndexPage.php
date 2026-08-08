@@ -40,7 +40,7 @@ final class MoonShineUserIndexPage extends IndexPage
                 resource: MoonShineUserRoleResource::class,
             )->badge(Color::PURPLE),
 
-            Text::make(__('moonshine::ui.resource.name'), 'name'),
+            Text::make(__('moonshine::ui.resource.name'), 'name')->sortable(),
 
             Image::make(__('moonshine::ui.resource.avatar'), 'avatar')->modifyRawValue(fn (
                 ?string $raw
@@ -66,6 +66,7 @@ final class MoonShineUserIndexPage extends IndexPage
             )->valuesQuery(static fn (Builder $q) => $q->select(['id', 'name'])),
 
             Email::make('E-mail', 'email'),
+            Text::make(__('moonshine::ui.resource.name'), 'name'),
         ];
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\MoonShine\Resources\Vk;
 
+use App\Models\VkGroup;
 use App\Models\VkPost;
 use App\MoonShine\Resources\Lead\LeadResource;
 use App\MoonShine\Resources\Vk\Pages\VkPostDetailPage;
@@ -14,6 +15,7 @@ use MoonShine\Contracts\Core\PageContract;
 use MoonShine\Laravel\Fields\Relationships\BelongsTo;
 use MoonShine\Laravel\Fields\Relationships\HasMany;
 use MoonShine\Laravel\Resources\ModelResource;
+use MoonShine\Support\Enums\SortDirection;
 use MoonShine\UI\Fields\Date;
 use MoonShine\UI\Fields\ID;
 use MoonShine\UI\Fields\Number;
@@ -35,6 +37,10 @@ class VkPostResource extends ModelResource
 
     /** Avoid N+1 on index/detail BelongsTo */
     protected array $with = ['group'];
+
+    protected string $sortColumn = 'posted_at';
+
+    protected SortDirection $sortDirection = SortDirection::DESC;
 
     /**
      * Aggregate for index column `comments_count` (see indexFields).
@@ -86,6 +92,17 @@ class VkPostResource extends ModelResource
             Date::make('Posted at', 'posted_at')->format('Y-m-d H:i:s'),
             // Comments: nested tree on VkPostDetailPage (PostCommentsTree), not flat HasMany
             HasMany::make('Leads', 'leads', resource: LeadResource::class),
+        ];
+    }
+
+    protected function filters(): iterable
+    {
+        return [
+            BelongsTo::make('Group', 'group', formatted: static fn (VkGroup $group): string => $group->name, resource: VkGroupResource::class)->nullable(),
+            Number::make('VK post ID', 'vk_post_id')->nullable(),
+            Text::make('Text', 'text')->placeholder('Search post text'),
+            Number::make('Author ID', 'author_id')->nullable(),
+            Date::make('Posted on', 'posted_at')->nullable(),
         ];
     }
 

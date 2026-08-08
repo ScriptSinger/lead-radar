@@ -8,6 +8,7 @@ use App\Models\Keyword;
 use App\MoonShine\Resources\Lead\LeadResource;
 use MoonShine\Laravel\Fields\Relationships\HasMany;
 use MoonShine\Laravel\Resources\ModelResource;
+use MoonShine\Support\Enums\SortDirection;
 use MoonShine\UI\Fields\ID;
 use MoonShine\UI\Fields\Select;
 use MoonShine\UI\Fields\Text;
@@ -22,6 +23,10 @@ class KeywordResource extends ModelResource
     protected string $title = 'Keywords';
 
     protected string $column = 'word';
+
+    protected string $sortColumn = 'word';
+
+    protected SortDirection $sortDirection = SortDirection::ASC;
 
     protected function indexFields(): iterable
     {
