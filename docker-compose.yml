@@ -63,7 +63,7 @@ services:
     networks:
       - laravel
 
-  worker-scan:
+  worker-vk:
     build:
       context: .
       dockerfile: docker/php/php.dockerfile
@@ -81,8 +81,7 @@ services:
     init: true
     security_opt:
       - no-new-privileges:true
-    # Wait for DB, then process queues. The VK API source performs its own
-    # health check before a scan starts.
+    # One dedicated worker prevents a long VK wave from delaying Telegram.
     # IMPORTANT: keep queue:work args on ONE logical line — bare newlines inside
     # sh -c end the command early (worker would listen only to "default").
     # Note: do not use `db:show` here — it may fail without php-intl even when DB is up.
@@ -90,10 +89,38 @@ services:
       - sh
       - -c
       - |
-        echo 'worker-scan: waiting for database...'
+        echo 'worker-vk: waiting for database...'
         until php artisan migrate:status >/dev/null 2>&1; do sleep 2; done
-        echo 'worker-scan: starting queue:work'
-        exec php artisan queue:work redis --queue=vk.scan,telegram.scan --tries=2 --timeout=300 --sleep=1 -vvv
+        echo 'worker-vk: starting queue:work'
+        exec php artisan queue:work redis --queue=vk.scan --tries=2 --timeout=300 --sleep=1 -vvv
+
+  worker-telegram:
+    build:
+      context: .
+      dockerfile: docker/php/php.dockerfile
+    env_file:
+      - .env
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - laravel
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    # Keep one MTProto process at a time: all Telegram calls share one session.
+    command:
+      - sh
+      - -c
+      - |
+        echo 'worker-telegram: waiting for database...'
+        until php artisan migrate:status >/dev/null 2>&1; do sleep 2; done
+        echo 'worker-telegram: starting queue:work'
+        exec php artisan queue:work redis --queue=telegram.scan --tries=2 --timeout=300 --sleep=1 -vvv
 
   worker-ops:
     build:

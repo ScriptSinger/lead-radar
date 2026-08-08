@@ -26,7 +26,7 @@ docker compose exec php php artisan key:generate
 docker compose exec php php artisan migrate --seed
 ```
 
-Сервисы: `php`, `nginx` (:80), `mysql`, `redis`, `worker-scan`, `worker-ops`,
+Сервисы: `php`, `nginx` (:80), `mysql`, `redis`, `worker-vk`, `worker-telegram`, `worker-ops`,
 `scheduler` и опционально `ngrok` (:4040).
 
 ## Конфигурация VK API
